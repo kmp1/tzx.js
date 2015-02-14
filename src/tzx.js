@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
 var tzx_js = (function () {
 
     "use strict";
@@ -282,6 +283,8 @@ var tzx_js = (function () {
             blocks: retBlockDetails
         };
     }
+
+    ////////// TAP Data Reading Functions
 
     function readTapData(input, i, machineSettings, output, blockDetails) {
         var pilotLength, dataStart = i + 2;
