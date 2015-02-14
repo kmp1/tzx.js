@@ -1,0 +1,44 @@
+{
+  "name": "tzx.js",
+  "version": "0.1.0",
+  "description": "A javascript .tzx (ZX Spectrum data file) API to convert into .wav files.",
+  "main": "tzx.js",
+  "scripts": {
+    "test": "grunt nodeunit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kmp1/tzx.js.git"
+  },
+  "keywords": [
+    "tzx",
+    "ZX",
+    "Spectrum",
+    "ZX-Spectrum",
+    "48k",
+    "wav",
+    "wave",
+    "audio",
+    "reader",
+    "player",
+    "tap"
+  ],
+  "author": "Kevin Phillips",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/kmp1/tzx.js/issues"
+  },
+  "homepage": "https://github.com/kmp1/tzx.js",
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-contrib-concat": "^0.5.0",
+    "grunt-contrib-jshint": "^0.11.0",
+    "grunt-contrib-nodeunit": "^0.4.1",
+    "grunt-contrib-uglify": "^0.7.0",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-jsdoc": "^0.5.7"
+  },
+  "dependencies" : {
+    "wave_js": "kmp1/wav.js"
+  }
+}
