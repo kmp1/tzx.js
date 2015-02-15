@@ -253,7 +253,7 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
-    function convertTzxToWave(machineSettings, input, output) {
+    function convertTzxToAudio(machineSettings, input, output) {
         var i = 0, version = { major: -1, minor: -1}, blockDetails, retBlockDetails = [];
 
         while (i < input.length) {
@@ -325,7 +325,7 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
-    function convertTapToWave(machineSettings, input, output) {
+    function convertTapToAudio(machineSettings, input, output) {
         var i = 0, blockDetails, retBlockDetails = [];
 
         while (i < input.length) {
@@ -349,7 +349,7 @@ var tzx_js = (function () {
     return {
 
         /**
-         * Converts a TZX to a wave file and returns some details about
+         * Converts a TZX to an audio file and returns some details about
          * what it has read.
          *
          * @param {Number} machineSettings The machine specific settings to use
@@ -361,10 +361,10 @@ var tzx_js = (function () {
          * example).
          * @return {Object} details about the TZX file that was converted
          */
-        convertTzxToWave: convertTzxToWave,
+        convertTzxToAudio: convertTzxToAudio,
 
         /**
-         * Converts a TZX to a wave file and returns some details about
+         * Converts a TZX to an audio file and returns some details about
          * what it has read.
          *
          * @param {Number} machineSettings The machine specific settings to use
@@ -376,7 +376,7 @@ var tzx_js = (function () {
          * example).
          * @return {Object} details about the TAP file that was converted
          */
-        convertTapToWave: convertTapToWave,
+        convertTapToAudio: convertTapToAudio,
 
         MachineSettings: {
             ZXSpectrum48: {
@@ -412,7 +412,7 @@ var tzx_js = (function () {
 }());
 
 if (typeof exports !== "undefined") {
-    exports.convertTzxToWave = tzx_js.convertTzxToWave;
-    exports.convertTapToWave = tzx_js.convertTapToWave;
+    exports.convertTzxToAudio = tzx_js.convertTzxToAudio;
+    exports.convertTapToAudio = tzx_js.convertTapToAudio;
     exports.MachineSettings = tzx_js.MachineSettings;
 }

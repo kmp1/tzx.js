@@ -27,7 +27,7 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 	// passing in the type of computer to generate the wave file for
 	// An object that gives access to the TZX file and the output
 	// file
-	var details = tzx_js.convertTzxToWave(tzx_js.MachineSettings.ZXSpectrum48, {
+	var details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, {
 		length: tzxFile.length,
 		getByte: function(index) {
 			return tzxFile[index];
@@ -50,7 +50,7 @@ exports.testBasicTap = function(test) {
 
 	var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
 
-	var details = tzx_js.convertTapToWave(tzx_js.MachineSettings.ZXSpectrum48, {
+	var details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, {
 		length: tapFile.length,
 		getByte: function(index) {
 			return tapFile[index];

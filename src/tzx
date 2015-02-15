@@ -100,9 +100,9 @@ var inputConvert = {
 
 var details;
 if (isTzx) {
-	details = tzx_js.convertTzxToWave(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+	details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
 } else {
-	details = tzx_js.convertTapToWave(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+	details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
 }
 
 fs.writeFileSync(output, new Buffer(wave.toByteArray()));
