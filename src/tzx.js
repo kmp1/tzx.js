@@ -290,6 +290,16 @@ var tzx_js = (function () {
         blockDetails.pause = getWord(input, i + 14);
         blockDetails.blockLength = (input.getByte(i + 18) << 16) | (input.getByte(i + 17) << 8) | input.getByte(i + 16);
 
+        blockDetails.flag = input.getByte(i + 19);
+        blockDetails.programType = input.getByte(i + 20);
+        blockDetails.checkSum = input.getByte(dataStart + blockDetails.blockLength);
+
+        blockDetails.validCheckSum = calculateChecksum(input, dataStart + 1,
+            blockDetails.blockLength - 1) === blockDetails.checkSum;
+
+        blockDetails.headerText = readDataBlockHeaderInformation(input, blockDetails.flag,
+            blockDetails.programType, blockDetails.blockLength, dataStart + 2);
+
         readDataBlock(input, output, pilotPulse,
             sync1Pulse, sync2Pulse,
             bit0Pulse, bit1Pulse, pilotLength, lastByteBitCount, blockDetails, dataStart + 1,
@@ -329,6 +339,18 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
+    function readPulseSequences(input, i, output, machineSettings) {
+        var x, count = input.getByte(i + 1), pulseLength, pulseSamples;
+
+        for (x = 0; x < count; x += 1) {
+            pulseLength = getWord(input, i + 2 + (x * 2));
+            pulseSamples = convertTStatesToSamples(pulseLength, output, machineSettings);
+            addSingleAnalogPulseToOutput(pulseSamples, output);
+        }
+
+        return i + (count * 2) + 1;
+    }
+
     function createInputWrapper(input) {
 
         if (typeof input.getByte === "undefined") {
@@ -341,8 +363,8 @@ var tzx_js = (function () {
     }
 
     function convertTzxToAudio(machineSettings, inputData, output) {
-        var i = 0, version = { major: -1, minor: -1}, blockDetails,
-            retBlockDetails = [], input = createInputWrapper(inputData);
+        var i = 0, version = { major: -1, minor: -1}, blockDetails, loopCount = 0,
+            loopStartIndex = -1, retBlockDetails = [], input = createInputWrapper(inputData);
 
         db = machineSettings.highAmplitude;
 
@@ -363,6 +385,22 @@ var tzx_js = (function () {
                 case 0x11:
                     i = readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails);
                     break;
+                case 0x13:
+                    i = readPulseSequences(input, i, output, machineSettings);
+                    break;
+                case 0x24:
+                    loopCount = getWord(input, i + 1);
+                    i = i + 2;
+                    loopStartIndex = i;
+                    blockDetails.loopCount = loopCount;
+                    retBlockDetails.push(blockDetails);
+                    break;
+                case 0x25:
+                    loopCount -= 1;
+                    if (loopCount > 0) {
+                        i = loopStartIndex;
+                    }
+                    break;
                 case 0x30:
                     i = readTextDescription(input, i, blockDetails);
                     break;
@@ -372,10 +410,12 @@ var tzx_js = (function () {
                 // TODO: Implement more block support here
                 default:
                     throw "Unsupported block: 0x" + blockDetails.blockType.toString(16) +
-                        " how about heading on over to github (https://github.com/kmp1/tzx.js) to help me add support?";
+                        ".  How about heading on over to github (https://github.com/kmp1/tzx.js) to help me add support?";
                 }
 
-                retBlockDetails.push(blockDetails);
+                if (loopCount <= 0) {
+                    retBlockDetails.push(blockDetails);
+                }
             }
             i += 1;
         }

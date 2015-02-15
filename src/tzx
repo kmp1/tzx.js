@@ -135,8 +135,8 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
 
     	var checkSum = "";
     	if (block.checkSum !== undefined) {
-    		checkSum = "\nCheckSum: " + block.checkSum + " (0x" + block.checkSum.toString(16) + ") - "
-    			+ (block.validCheckSum ? "OK" : "INVALID");
+    		checkSum = "\nCheckSum: " + block.checkSum + " (0x" + block.checkSum.toString(16) + ") - " +
+    			(block.validCheckSum ? "OK" : "INVALID");
     	}
 
     	var typeLabel;
@@ -146,20 +146,22 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
 			typeLabel = "11 - Turbo Loading Data -";
     	}
 
-        logOutput = "(" + block.offset.toString(16) + "):  " + typeLabel + " " + headerText + "\nLength: "
-            + block.blockLength + " bytes \nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")" + checkSum
-            + "\nPause after block: " + block.pause + " milliseconds";
+        logOutput = typeLabel + " " + headerText + "\nLength: " +
+        	block.blockLength + " bytes \nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")" +
+            checkSum + "\nPause after block: " + block.pause + " milliseconds";
+    } else if (block.blockType === 0x24) {
+    	logOutput = "24 - Loop - count: " + block.loopCount;
+    } else if (block.blockType === 0x25) {
+    	logOutput = "25 - Loop End";
     } else if (block.blockType === 0x32) {
-
-    	logOutput = "(" + block.offset.toString(16) + "):  32 - Archive Info: ";
+    	logOutput = "32 - Archive Info: ";
     	for (var y = 0; y < block.archiveInfo.length; y += 1) {
     		logOutput += block.archiveInfo[y].type + ": " + block.archiveInfo[y].info + "\n";
     	}
 
     } else if (block.blockType === 0x30) {
-
-        logOutput = "(" + block.offset.toString(16) + "):  30 - Description: " + block.tapeDescription;
+        logOutput = "30 - Description: " + block.tapeDescription;
     }
 
-    console.log("Block " + x + " " + logOutput);
+    console.log("Block " + x + "(" + block.offset.toString(16) + "):  " + logOutput);
 }
