@@ -31,16 +31,13 @@ var program = require('commander');
 var path = require('path');
 var pkg = require(path.join(__dirname, '../package.json'));
 
-var defaultOut = "out.wav";
-
 program
 	.usage("[options] <file>")
     .version(pkg.version)
-    .option('-o, --out <path>', 'Path to an output file (default is ' + defaultOut + ')')
+    .option('-o, --out <path>', 'Path to an output file (if not specified, a file in the same location with the same name ending with .wav will be created)')
     .option('-t, --type <1|2>', 'The type 1 is TZX and 2 is TAP - if not specified the file extension is used', parseInt)
     .parse(process.argv);
 
-var output = program.out ? program.out : defaultOut;
 var input = program.args[0];
 
 if (input === undefined) {
@@ -51,6 +48,13 @@ if (input === undefined) {
 if (!fs.existsSync(input)) {
 	console.log("Could not find the input file specified");
 	return;
+}
+
+var output;
+if (program.out == undefined) {
+	output = input + ".wav";
+} else {
+	output = program.out;
 }
 
 var typeSpecified = false;
@@ -91,18 +95,12 @@ console.log("Converting " + input + " to " + output + " (as a " + (isTzx ? "tzx"
 
 var file = fs.readFileSync(input);
 var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
-var inputConvert = {
-	length: file.length,
-	getByte: function(index) {
-		return file[index];
-	}
-};
 
 var details;
 if (isTzx) {
-	details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+	details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
 } else {
-	details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+	details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
 }
 
 fs.writeFileSync(output, new Buffer(wave.toByteArray()));
@@ -119,7 +117,7 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
     var block = details.blocks[x - 1];
     var logOutput = "";
 
-    if (block.blockType === 0x10) {
+    if (block.blockType === 0x10 || block.blockType === 0x11) {
 
         var headerText = "";
 
@@ -141,9 +139,23 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
     			+ (block.validCheckSum ? "OK" : "INVALID");
     	}
 
-        logOutput = "(" + block.offset.toString(16) + "):  10 - Standard Loading Data - " + headerText + "\nLength: "
+    	var typeLabel;
+    	if (block.blockType === 0x10) {
+    		typeLabel = "10 - Standard Loading Data -";
+    	} else {
+			typeLabel = "11 - Turbo Loading Data -";
+    	}
+
+        logOutput = "(" + block.offset.toString(16) + "):  " + typeLabel + " " + headerText + "\nLength: "
             + block.blockLength + " bytes \nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")" + checkSum
             + "\nPause after block: " + block.pause + " milliseconds";
+    } else if (block.blockType === 0x32) {
+
+    	logOutput = "(" + block.offset.toString(16) + "):  32 - Archive Info: ";
+    	for (var y = 0; y < block.archiveInfo.length; y += 1) {
+    		logOutput += block.archiveInfo[y].type + ": " + block.archiveInfo[y].info + "\n";
+    	}
+
     } else if (block.blockType === 0x30) {
 
         logOutput = "(" + block.offset.toString(16) + "):  30 - Description: " + block.tapeDescription;

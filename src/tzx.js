@@ -216,6 +216,33 @@ var tzx_js = (function () {
         return i + length + 1;
     }
 
+    function readArchiveInfo(input, i, blockDetails) {
+        var length, count = input.getByte(i + 3), x, y,
+            type, stringLength, string, entryStart = i + 4;
+
+        blockDetails.archiveInfo = [];
+
+        length = getWord(input, i + 1);
+
+        for (x = 0; x < count; x += 1) {
+
+            type = input.getByte(entryStart);
+            stringLength = input.getByte(entryStart + 1);
+            entryStart += stringLength + 2;
+
+            string = "";
+            for (y = 0; y < stringLength; y += 1) {
+                string += String.fromCharCode(input.getByte(entryStart + 2 + y));
+            }
+
+            blockDetails.archiveInfo.push({
+                type: type,
+                info: string
+            });
+        }
+        return i + length + 2;
+    }
+
     function readDataBlockHeaderInformation(fileReader, flag, programType, length, startOffset) {
         var headerText = "", i;
 
@@ -230,6 +257,45 @@ var tzx_js = (function () {
         }
 
         return headerText;
+    }
+
+    function readDataBlock(input, output, pilotPulse, sync1Pulse, sync2Pulse, bit0Pulse, bit1Pulse, pilotLength,
+            lastByteBitCount, blockDetails, dataBlockStart, machineSettings) {
+
+        addPilotToneToOutput(convertTStatesToSamples(pilotPulse, output, machineSettings), pilotLength, output);
+
+        addAnalogWaveToOutput(convertTStatesToSamples(sync1Pulse, output, machineSettings),
+            convertTStatesToSamples(sync2Pulse, output, machineSettings), output);
+
+        addDataBlockToOutput(convertTStatesToSamples(bit0Pulse, output, machineSettings),
+            convertTStatesToSamples(bit1Pulse, output, machineSettings),
+            input, dataBlockStart, blockDetails.blockLength, lastByteBitCount, output);
+
+        addPauseToOutput(convertTStatesToSamples(bit1Pulse, output, machineSettings), blockDetails.pause, output);
+
+    }
+
+    function readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
+        var pilotPulse, sync1Pulse, sync2Pulse, bit0Pulse, bit1Pulse, pilotLength,
+            lastByteBitCount, dataStart = i + 18;
+
+        pilotPulse = getWord(input, i + 1);
+        sync1Pulse = getWord(input, i + 3);
+        sync2Pulse = getWord(input, i + 5);
+        bit0Pulse = getWord(input, i + 7);
+        bit1Pulse = getWord(input, i + 9);
+        pilotLength = getWord(input, i + 11);
+        lastByteBitCount = input.getByte(i + 13);
+
+        blockDetails.pause = getWord(input, i + 14);
+        blockDetails.blockLength = (input.getByte(i + 18) << 16) | (input.getByte(i + 17) << 8) | input.getByte(i + 16);
+
+        readDataBlock(input, output, pilotPulse,
+            sync1Pulse, sync2Pulse,
+            bit0Pulse, bit1Pulse, pilotLength, lastByteBitCount, blockDetails, dataStart + 1,
+            machineSettings);
+
+        return dataStart + blockDetails.blockLength;
     }
 
     function readStandardSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
@@ -255,16 +321,10 @@ var tzx_js = (function () {
             throw "Invalid TZX flag byte value: " + blockDetails.flag;
         }
 
-        addPilotToneToOutput(convertTStatesToSamples(machineSettings.pilotPulse, output, machineSettings), pilotLength, output);
-
-        addAnalogWaveToOutput(convertTStatesToSamples(machineSettings.sync1Pulse, output, machineSettings),
-            convertTStatesToSamples(machineSettings.sync2Pulse, output, machineSettings), output);
-
-        addDataBlockToOutput(convertTStatesToSamples(machineSettings.bit0Pulse, output, machineSettings),
-            convertTStatesToSamples(machineSettings.bit1Pulse, output, machineSettings),
-            input, dataStart + 1, blockDetails.blockLength, 8, output);
-
-        addPauseToOutput(convertTStatesToSamples(machineSettings.bit1Pulse, output, machineSettings), blockDetails.pause, output);
+        readDataBlock(input, output, machineSettings.pilotPulse,
+            machineSettings.sync1Pulse, machineSettings.sync2Pulse,
+            machineSettings.bit0Pulse, machineSettings.bit1Pulse, pilotLength, 8, blockDetails, dataStart + 1,
+            machineSettings);
 
         return dataStart + blockDetails.blockLength;
     }
@@ -300,12 +360,19 @@ var tzx_js = (function () {
                 case 0x10:
                     i = readStandardSpeedDataBlock(input, i, output, machineSettings, blockDetails);
                     break;
+                case 0x11:
+                    i = readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails);
+                    break;
                 case 0x30:
                     i = readTextDescription(input, i, blockDetails);
                     break;
+                case 0x32:
+                    i = readArchiveInfo(input, i, blockDetails);
+                    break;
                 // TODO: Implement more block support here
                 default:
-                    throw "Unsupported block: 0x" + blockDetails.blockType.toString(16);
+                    throw "Unsupported block: 0x" + blockDetails.blockType.toString(16) +
+                        " how about heading on over to github (https://github.com/kmp1/tzx.js) to help me add support?";
                 }
 
                 retBlockDetails.push(blockDetails);
