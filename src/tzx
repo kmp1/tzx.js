@@ -117,7 +117,7 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
     var block = details.blocks[x - 1];
     var logOutput = "";
 
-    if (block.blockType === 0x10 || block.blockType === 0x11) {
+    if (block.blockType === 0x10 || block.blockType === 0x11 || block.blockType === 0x14) {
 
         var headerText = "";
 
@@ -142,17 +142,39 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
     	var typeLabel;
     	if (block.blockType === 0x10) {
     		typeLabel = "10 - Standard Loading Data -";
+    	} else if (block.blockType === 0x11) {
+    		typeLabel = "11 - Turbo Loading Data -";
     	} else {
-			typeLabel = "11 - Turbo Loading Data -";
+			typeLabel = "14 - Pure Data -";
+    	}
+
+    	var flagLabel;
+    	if (block.flag !== undefined) {
+			flagLabel = "\nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")";
+    	} else {
+    		flagLabel = "";
+    	}
+
+    	var pauseLabel;
+    	if (block.pause !== undefined) {
+			pauseLabel = "\nPause after block: " + block.pause + " milliseconds";
+    	} else {
+    		pauseLabel = "";
     	}
 
         logOutput = typeLabel + " " + headerText + "\nLength: " +
-        	block.blockLength + " bytes \nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")" +
-            checkSum + "\nPause after block: " + block.pause + " milliseconds";
+        	block.blockLength + " bytes " + flagLabel +
+            checkSum + pauseLabel;
+    } else if (block.blockType === 0x12) {
+    	logOutput = "12 - Pure tone: " + block.pilotPulse + " (" + block.pilotLength + ")";
+    } else if (block.blockType === 0x21) {
+    	logOutput = "21 - Group Start: " + block.groupName;
     } else if (block.blockType === 0x24) {
     	logOutput = "24 - Loop - count: " + block.loopCount;
     } else if (block.blockType === 0x25) {
     	logOutput = "25 - Loop End";
+    } else if (block.blockType === 0x2a) {
+    	logOutput = "2a - Stop the tape - length: " +block. stopTapeLength
     } else if (block.blockType === 0x32) {
     	logOutput = "32 - Archive Info: ";
     	for (var y = 0; y < block.archiveInfo.length; y += 1) {

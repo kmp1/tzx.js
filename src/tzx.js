@@ -34,6 +34,12 @@ var tzx_js = (function () {
         return word;
     }
 
+    function getDWord(input, i) {
+        var dword = (input.getByte(i + 3) << 24) | (input.getByte(i + 2) << 16) | (input.getByte(i + 1) << 8) | input.getByte(i);
+
+        return dword;
+    }
+
     ////////// Audio Wave Generation Functions
 
     var wavePosition = 0, db;
@@ -259,6 +265,16 @@ var tzx_js = (function () {
         return headerText;
     }
 
+    function readPureTone(input, i, output, blockDetails, machineSettings) {
+
+        blockDetails.pilotPulse = getWord(input, i + 1);
+        blockDetails.pilotLength = getWord(input, i + 3);
+
+        addPilotToneToOutput(convertTStatesToSamples(blockDetails.pilotPulse, output, machineSettings), blockDetails.pilotLength, output);
+
+        return i + 4;
+    }
+
     function readDataBlock(input, output, pilotPulse, sync1Pulse, sync2Pulse, bit0Pulse, bit1Pulse, pilotLength,
             lastByteBitCount, blockDetails, dataBlockStart, machineSettings) {
 
@@ -273,6 +289,24 @@ var tzx_js = (function () {
 
         addPauseToOutput(convertTStatesToSamples(bit1Pulse, output, machineSettings), blockDetails.pause, output);
 
+    }
+
+    function readPureDataBlock(input, i, output, machineSettings, blockDetails) {
+        var bit0Pulse, bit1Pulse, pilotLength, lastByteBitCount, dataStart = i + 11;
+
+        bit0Pulse = getWord(input, i + 1);
+        bit1Pulse = getWord(input, i + 3);
+        lastByteBitCount = input.getByte(i + 5);
+        blockDetails.pause = getWord(input, i + 6);
+        blockDetails.blockLength = (input.getByte(i + 10) << 16) | (input.getByte(i + 9) << 8) | input.getByte(i + 8);
+
+        addDataBlockToOutput(convertTStatesToSamples(bit0Pulse, output, machineSettings),
+            convertTStatesToSamples(bit1Pulse, output, machineSettings),
+            input, dataStart, blockDetails.blockLength, lastByteBitCount, output);
+
+        addPauseToOutput(convertTStatesToSamples(bit1Pulse, output, machineSettings), blockDetails.pause, output);
+
+        return dataStart + blockDetails.blockLength;
     }
 
     function readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
@@ -351,6 +385,15 @@ var tzx_js = (function () {
         return i + (count * 2) + 1;
     }
 
+    function readGroupStart(input, i, blockDetails) {
+        var x, name = "", nameLength = input.getByte(i + 1);
+        for (x = 0; x < nameLength; x += 1) {
+            name += String.fromCharCode(input.getByte(i + 2 + x));
+        }
+        blockDetails.groupName = name;
+        return i + nameLength + 1;
+    }
+
     function createInputWrapper(input) {
 
         if (typeof input.getByte === "undefined") {
@@ -369,6 +412,7 @@ var tzx_js = (function () {
         db = machineSettings.highAmplitude;
 
         while (i < input.getLength()) {
+
             if (i === 0) {
                 i = readHeader(input, version);
             } else {
@@ -385,8 +429,19 @@ var tzx_js = (function () {
                 case 0x11:
                     i = readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails);
                     break;
+                case 0x12:
+                    i = readPureTone(input, i, output, blockDetails, machineSettings);
+                    break;
                 case 0x13:
                     i = readPulseSequences(input, i, output, machineSettings);
+                    break;
+                case 0x14:
+                    i = readPureDataBlock(input, i, output, machineSettings, blockDetails);
+                    break;
+                case 0x21:
+                    i = readGroupStart(input, i, blockDetails);
+                    break;
+                case 0x22:
                     break;
                 case 0x24:
                     loopCount = getWord(input, i + 1);
@@ -401,11 +456,18 @@ var tzx_js = (function () {
                         i = loopStartIndex;
                     }
                     break;
+                case 0x2a:
+                    blockDetails.stopTapeLength = getDWord(input, i + 1);
+                    i = i + blockDetails.stopTapeLength + 4;
+                    break;
                 case 0x30:
                     i = readTextDescription(input, i, blockDetails);
                     break;
                 case 0x32:
                     i = readArchiveInfo(input, i, blockDetails);
+                    break;
+                case 0x5a:
+                    i += 9;
                     break;
                 // TODO: Implement more block support here
                 default:
