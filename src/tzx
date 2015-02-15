@@ -80,10 +80,10 @@ if (!typeSpecified) {
 		isTzx = true;
 	} else {
 		var extension = input.substr(dot + 1).trim().toLowerCase();
-		if (extension === 'tap') {
-			isTzx = false;
-		} else if (extension === 'tap') {
+		if (extension === 'tzx') {
 			isTzx = true;
+		} else if (extension === 'tap') {
+			isTzx = false;
 		} else {
 			console.log("Unrecognised extension on the input file and no expclit -t argument passed so assuming TZX");
 			isTzx = true;
