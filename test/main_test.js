@@ -28,7 +28,7 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 	// An object that gives access to the TZX file and the output
 	// file
 	var details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, {
-		length: tzxFile.length,
+		getLength: function() { return tzxFile.length; },
 		getByte: function(index) {
 			return tzxFile[index];
 		}
@@ -50,12 +50,8 @@ exports.testBasicTap = function(test) {
 
 	var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
 
-	var details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, {
-		length: tapFile.length,
-		getByte: function(index) {
-			return tapFile[index];
-		}
-	}, wave);
+	var details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48,
+		tapFile, wave);
 
 	var rawWaveData = wave.toByteArray();
 

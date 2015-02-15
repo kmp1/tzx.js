@@ -180,7 +180,7 @@ var tzx_js = (function () {
 
         for (i = 0; i < 7; i += 1) {
 
-            if (i >= input.length) {
+            if (i >= input.getLength()) {
                 throw "Input is not a valid TZX file";
             }
 
@@ -269,12 +269,24 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
-    function convertTzxToAudio(machineSettings, input, output) {
-        var i = 0, version = { major: -1, minor: -1}, blockDetails, retBlockDetails = [];
+    function createInputWrapper(input) {
+
+        if (typeof input.getByte === "undefined") {
+            return {
+                getLength: function () { return input.length; },
+                getByte: function(i) { return input[i]; }
+            };
+        }
+        return input;
+    }
+
+    function convertTzxToAudio(machineSettings, inputData, output) {
+        var i = 0, version = { major: -1, minor: -1}, blockDetails,
+            retBlockDetails = [], input = createInputWrapper(inputData);
 
         db = machineSettings.highAmplitude;
 
-        while (i < input.length) {
+        while (i < input.getLength()) {
             if (i === 0) {
                 i = readHeader(input, version);
             } else {
@@ -343,12 +355,13 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
-    function convertTapToAudio(machineSettings, input, output) {
-        var i = 0, blockDetails, retBlockDetails = [];
+    function convertTapToAudio(machineSettings, inputData, output) {
+        var i = 0, blockDetails, retBlockDetails = [],
+            input = createInputWrapper(inputData);
 
         db = machineSettings.highAmplitude;
 
-        while (i < input.length) {
+        while (i < input.getLength()) {
             blockDetails = {
                 blockType: 0x10,
                 offset: i
