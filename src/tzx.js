@@ -216,6 +216,22 @@ var tzx_js = (function () {
         return i + length + 1;
     }
 
+    function readDataBlockHeaderInformation(fileReader, flag, programType, length, startOffset) {
+        var headerText = "", i;
+
+        if (flag === 0 && (length === 19 || length === 20) && programType < 4) {
+            for (i = startOffset; i < startOffset + 10; i += 1) {
+                headerText += String.fromCharCode(fileReader.getByte(i));
+            }
+
+            headerText = headerText.trim();
+        } else {
+            headerText = "No header";
+        }
+
+        return headerText;
+    }
+
     function readStandardSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
         var pilotLength, dataStart = i + 4;
 
@@ -228,7 +244,7 @@ var tzx_js = (function () {
         blockDetails.validCheckSum = calculateChecksum(input, dataStart + 1,
             blockDetails.blockLength - 1) === blockDetails.checkSum;
 
-        blockDetails.headerText = machineSettings.readDataBlockHeaderInformation(input, blockDetails.flag,
+        blockDetails.headerText = readDataBlockHeaderInformation(input, blockDetails.flag,
             blockDetails.programType, blockDetails.blockLength, dataStart + 2);
 
         if (blockDetails.flag === 0) {
@@ -392,22 +408,7 @@ var tzx_js = (function () {
                 bit0Pulse: 855,
                 bit1Pulse: 1710,
                 headerPilotLength: 8064,
-                dataPilotLength: 3220,
-                readDataBlockHeaderInformation: function (fileReader, flag, programType, length, startOffset) {
-                    var headerText = "", x;
-
-                    if (flag === 0 && (length === 19 || length === 20) && programType < 4) {
-                        for (x = startOffset; x < startOffset + 10; x += 1) {
-                            headerText += String.fromCharCode(fileReader.getByte(x));
-                        }
-
-                        headerText = headerText.trim();
-                    } else {
-                        headerText = "No header";
-                    }
-
-                    return headerText;
-                }
+                dataPilotLength: 3220
             }
             // TODO: Add some more machines here - e.g. SAM, CPC etc (there are a few supported by TZX files)
         }
