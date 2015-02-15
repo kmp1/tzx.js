@@ -1,0 +1,130 @@
+#!/usr/bin/env node
+
+var fs = require('fs');
+var constants = require('constants');
+var wav_js = require("/Users/kevin/Projects/wav.js/master/src/wav.js");
+var tzx_js = require("/Users/kevin/Projects/tzx.js/master/src/tzx.js");
+var program = require('commander');
+var path = require('path');
+var pkg = require(path.join(__dirname, '../package.json'));
+
+var defaultOut = "out.wav";
+
+program
+	.usage("[options] <file>")
+    .version(pkg.version)
+    .option('-o, --out <path>', 'Path to an output file (default is ' + defaultOut + ')')
+    .option('-t, --type <1|2>', 'The type 1 is TZX and 2 is TAP - if not specified the file extension is used', parseInt)
+    .parse(process.argv);
+
+var output = program.out ? program.out : defaultOut;
+var input = program.args[0];
+
+if (input === undefined) {
+	console.log("No input file specified");
+	return;
+}
+
+if (!fs.existsSync(input)) {
+	console.log("Could not find the input file specified");
+	return;
+}
+
+var typeSpecified = false;
+var isTzx;
+
+if (program.type !== undefined) {
+	if (program.type === 1) {
+		isTzx = true;
+		typeSpecified = true;
+	} else if (program.type === 2) {
+		isTzx = false;
+		typeSpecified = true;
+	} else {
+		console.log("Invalid type '" + program.type + "' ignored the argument.");
+	}
+}
+
+if (!typeSpecified) {
+
+	var dot = input.lastIndexOf('.');
+	if (dot === -1) {
+		console.log("No extension on the input file and no expclit -t argument passed so assuming TZX");
+		isTzx = true;
+	} else {
+		var extension = input.substr(dot + 1).trim().toLowerCase();
+		if (extension === 'tap') {
+			isTzx = false;
+		} else if (extension === 'tap') {
+			isTzx = true;
+		} else {
+			console.log("Unrecognised extension on the input file and no expclit -t argument passed so assuming TZX");
+			isTzx = true;
+		}
+	}
+}
+
+console.log("Converting " + input + " to " + output + " (as a " + (isTzx ? "tzx" : "tap") + " file)...");
+
+var file = fs.readFileSync(input);
+var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
+var inputConvert = {
+	length: file.length,
+	getByte: function(index) {
+		return file[index];
+	}
+};
+
+var details;
+if (isTzx) {
+	details = tzx_js.convertTzxToWave(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+} else {
+	details = tzx_js.convertTapToWave(tzx_js.MachineSettings.ZXSpectrum48, inputConvert, wave);
+}
+
+fs.writeFileSync(output, new Buffer(wave.toByteArray()));
+
+console.log("Conversion SUCCESSFUL!");
+
+if (details.majorVersion !== undefined) {
+	console.log("ZXTape file revision " + details.majorVersion + "." + details.minorVersion);
+}
+
+console.log("Number of Blocks: " + details.blocks.length);
+
+for (var x = 1; x < details.blocks.length + 1; x += 1) {
+    var block = details.blocks[x - 1];
+    var logOutput = "";
+
+    if (block.blockType === 0x10) {
+
+        var headerText = "";
+
+        if (block.programType !== undefined) {
+	        if (block.programType === 0) {
+	            headerText = "Program: " + block.headerText;
+	        } else if (block.programType === 1) {
+	            headerText = "Num. Array: " + block.headerText;
+	        } else if (block.programType === 2) {
+	            headerText = "Char. Array : " + block.headerText;
+	        } else {
+	            headerText = "Bytes: " + block.headerText;
+	        }
+    	}
+
+    	var checkSum = "";
+    	if (block.checkSum !== undefined) {
+    		checkSum = "\nCheckSum: " + block.checkSum + " (0x" + block.checkSum.toString(16) + ") - "
+    			+ (block.validCheckSum ? "OK" : "INVALID");
+    	}
+
+        logOutput = "(" + block.offset.toString(16) + "):  10 - Standard Loading Data - " + headerText + "\nLength: "
+            + block.blockLength + " bytes \nFlag: " + block.flag + "(0x" + block.flag.toString(16) + ")" + checkSum
+            + "\nPause after block: " + block.pause + " milliseconds";
+    } else if (block.blockType === 0x30) {
+
+        logOutput = "(" + block.offset.toString(16) + "):  30 - Description: " + block.tapeDescription;
+    }
+
+    console.log("Block " + x + " " + logOutput);
+}

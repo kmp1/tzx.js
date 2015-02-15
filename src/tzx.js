@@ -29,62 +29,67 @@ var tzx_js = (function () {
     ////////// General Byte Manipulation Functions
 
     function getWord(input, i) {
-        return (input.getByte(i + 1) << 8) | input.getByte(i);
+        var word = (input.getByte(i + 1) << 8) | input.getByte(i);
+
+        return word;
     }
 
     ////////// Audio Wave Generation Functions
 
-    var phase = 0, db = 115;
+    var wavePosition = 0, db = 115;
 
     function convertTStatesToSamples(tStates, output, machineSettings) {
         var samples = 0.5 + ((output.frequency / machineSettings.clockSpeed)) * tStates;
+
         return samples;
     }
 
     function addSampleToOutput(data, output) {
         var sample = data + 0x80;
+
         output.addSample(sample);
     }
 
     function addAnalogWaveToOutput(pulse1, pulse2, output) {
-        var amp, x, t = 0, t1;
+        var amp, i, t = 0;
 
         amp = (db * 20) / (8 * pulse1 * pulse1 * pulse1);
 
-        for (x = phase; x < pulse1; x += 1) {
-            addSampleToOutput(Math.floor(0.5 - amp * (x * (x - pulse1) * (x - 2 * pulse1))), output);
+        for (i = wavePosition; i < pulse1; i += 1) {
+            addSampleToOutput(Math.floor(0.5 - amp * (i * (i - pulse1) * (i - 2 * pulse1))), output);
             t += 1;
         }
 
-        phase = t + phase - pulse1;
-        t1 = t;
+        wavePosition = t + wavePosition - pulse1;
+        t = 0;
 
         amp = (db * 20) / (8 * pulse2 * pulse2 * pulse2);
 
-        for (x = phase; x < pulse2; x += 1) {
-            addSampleToOutput(Math.floor(0.5 - amp * (x * (x + pulse2) * (x - pulse2))), output);
+        for (i = wavePosition; i < pulse2; i += 1) {
+            addSampleToOutput(Math.floor(0.5 - amp * (i * (i + pulse2) * (i - pulse2))), output);
             t += 1;
         }
 
-        phase = t - t1 + phase - pulse2;
+        wavePosition = t + wavePosition - pulse2;
     }
 
     function addSingleAnalogPulseToOutput(pulse, output) {
-        var t = 0, amp, x;
+        var t = 0, amp, i;
+
         amp = (db * 20) / (8 * pulse * pulse * pulse);
 
-        for (x = phase; x < pulse; x += 1) {
-            addSampleToOutput(Math.floor(0.5 - amp * (x * (x - pulse) * (x - 2 * pulse))), output);
+        for (i = wavePosition; i < pulse; i += 1) {
+            addSampleToOutput(Math.floor(0.5 - amp * (i * (i - pulse) * (i - 2 * pulse))), output);
             t += 1;
         }
 
-        phase = t + phase - pulse;
-
         db = -db;
+        wavePosition = t + wavePosition - pulse;
     }
 
     function addPilotToneToOutput(pilotPulse, length, output) {
         var i, t = 0;
+
         if (length & 1) {
             addSingleAnalogPulseToOutput(pilotPulse, output);
             t = 1;
@@ -96,60 +101,65 @@ var tzx_js = (function () {
     }
 
     function addDataBlockToOutput(zeroPulse, onePulse, input, offset, length, lastByteBitCount, output) {
-
-        var i, j, b, dataByte;
+        var i, mask, dataByte, pulse;
 
         for (i = offset; i < offset + length - 1; i += 1) {
             dataByte = input.getByte(i);
-            b = 0x80;
-            while (b) {
-                if (b & dataByte) {
-                    addAnalogWaveToOutput(onePulse, onePulse, output);
+            mask = 0x80;
+            while (mask) {
+                if (mask & dataByte) {
+                    pulse = onePulse;
                 } else {
-                    addAnalogWaveToOutput(zeroPulse, zeroPulse, output);
+                    pulse = zeroPulse;
                 }
-                b >>= 1;
+                addAnalogWaveToOutput(pulse, pulse, output);
+                mask >>= 1;
             }
         }
 
-        b = 0x80;
+        mask = 0x80;
         dataByte = input.getByte(i);
-        for (j = 0; j < lastByteBitCount; j += 1) {
-            if (b & dataByte) {
-                addAnalogWaveToOutput(onePulse, onePulse, output);
+        for (i = 0; i < lastByteBitCount; i += 1) {
+            if (mask & dataByte) {
+                pulse = onePulse;
             } else {
-                addAnalogWaveToOutput(zeroPulse, zeroPulse, output);
+                pulse = zeroPulse;
             }
-            b >>= 1;
+            addAnalogWaveToOutput(pulse, pulse, output);
+            mask >>= 1;
         }
     }
 
     function addPauseToOutput(pausePulse, duration, output) {
         var i, m;
-        if (duration !== 0) {
-            if (db < 0) {
-                addSingleAnalogPulseToOutput(pausePulse, output);
-            }
 
-            addAnalogWaveToOutput(pausePulse, pausePulse, output);
-            m = db;
-            pausePulse = 250;
-            for (i = 1; i < output.frequency * duration / (pausePulse * 2000.0); i += 1) {
-
-                db = 200 * db / (200.0 + i);
-
-                if (db < 1) {
-                    db = 1;
-                }
-                addAnalogWaveToOutput(pausePulse, pausePulse, output);
-            }
-            db = m;
+        if (duration === 0) {
+            return;
         }
+
+        if (db < 0) {
+            addSingleAnalogPulseToOutput(pausePulse, output);
+        }
+
+        addAnalogWaveToOutput(pausePulse, pausePulse, output);
+        m = db;
+        pausePulse = 250;
+        for (i = 1; i < output.frequency * duration / (pausePulse * 2000.0); i += 1) {
+
+            db = 200 * db / (200.0 + i);
+
+            if (db < 1) {
+                db = 1;
+            }
+            addAnalogWaveToOutput(pausePulse, pausePulse, output);
+        }
+        db = m;
     }
 
     function addEndOfFileToneToOutput(output) {
-        var t;
-        for (t = 0; t < 1000; t += 1) {
+        var i;
+
+        for (i = 0; i < 1000; i += 1) {
             addAnalogWaveToOutput(12, 12, output);
         }
     }
@@ -157,47 +167,49 @@ var tzx_js = (function () {
     ////////// TZX Data Reading Functions
 
     function calculateChecksum(input, offset, length) {
-        var x, dataCheckSum = 0;
-        for (x = offset; x < offset + length; x += 1) {
-            dataCheckSum ^= input.getByte(x);
+        var i, dataCheckSum = 0;
+
+        for (i = offset; i < offset + length; i += 1) {
+            dataCheckSum ^= input.getByte(i);
         }
         return dataCheckSum;
     }
 
     function readHeader(input, version) {
-        var j, sig = "", eof;
+        var i, sig = "", eof;
 
-        for (j = 0; j < 7; j += 1) {
+        for (i = 0; i < 7; i += 1) {
 
-            if (j >= input.length) {
+            if (i >= input.length) {
                 throw "Input is not a valid TZX file";
             }
 
-            sig += String.fromCharCode(input.getByte(j));
+            sig += String.fromCharCode(input.getByte(i));
         }
 
         if (sig !== "ZXTape!") {
             throw "Input is not a valid TZX file as the signature is wrong, got: '" + sig + "'";
         }
 
-        eof = input.getByte(j);
-        j += 1;
+        eof = input.getByte(i);
+        i += 1;
 
         if (eof !== 26) {
             throw "Input is not a valid TZX file as the EOF byte is wrong, got 0x" + eof.toString(16);
         }
 
-        version.major = input.getByte(j);
-        j += 1;
-        version.minor = input.getByte(j);
-        return j;
+        version.major = input.getByte(i);
+        i += 1;
+        version.minor = input.getByte(i);
+        return i;
     }
 
-    function readTextDescription(fileReader, i, blockDetails) {
+    function readTextDescription(input, i, blockDetails) {
         var length, x, description = "";
-        length = fileReader.getByte(i + 1);
+
+        length = input.getByte(i + 1);
         for (x = 0; x < length; x += 1) {
-            description += String.fromCharCode(fileReader.getByte(i + 2 + x));
+            description += String.fromCharCode(input.getByte(i + 2 + x));
         }
 
         blockDetails.tapeDescription = description;
@@ -205,7 +217,6 @@ var tzx_js = (function () {
     }
 
     function readStandardSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
-
         var pilotLength, dataStart = i + 4;
 
         blockDetails.pause = getWord(input, i + 1);
@@ -243,7 +254,6 @@ var tzx_js = (function () {
     }
 
     function convertTzxToWave(machineSettings, input, output) {
-
         var i = 0, version = { major: -1, minor: -1}, blockDetails, retBlockDetails = [];
 
         while (i < input.length) {
@@ -320,6 +330,7 @@ var tzx_js = (function () {
 
         while (i < input.length) {
             blockDetails = {
+                blockType: 0x10,
                 offset: i
             };
 
