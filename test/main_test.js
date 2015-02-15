@@ -119,3 +119,23 @@ exports.testTzxWithPureDataBlock = function(test) {
 
     test.done();
 };
+
+exports.testTzxWithArchiveInfo = function(test) {
+
+	var tzxFile = fs.readFileSync("test/input/archive_info.tzx");
+
+	var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
+
+	var details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48,
+		tzxFile, wave);
+
+	var rawWaveData = wave.toByteArray();
+
+	var expectedOutput = fs.readFileSync("test/expected_output/archive_info_tzx.wav");
+
+	var theyMatch = compareByteArrays(expectedOutput, rawWaveData);
+
+    test.equal(theyMatch, true, "The TZX with fast data test fails as the output does not match our expectations");
+
+    test.done();
+};

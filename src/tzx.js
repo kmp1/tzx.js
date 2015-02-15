@@ -234,11 +234,13 @@ var tzx_js = (function () {
 
             type = input.getByte(entryStart);
             stringLength = input.getByte(entryStart + 1);
-            entryStart += stringLength + 2;
+
+            entryStart += 2;
 
             string = "";
             for (y = 0; y < stringLength; y += 1) {
-                string += String.fromCharCode(input.getByte(entryStart + 2 + y));
+                string += String.fromCharCode(input.getByte(entryStart));
+                entryStart += 1;
             }
 
             blockDetails.archiveInfo.push({
@@ -292,21 +294,27 @@ var tzx_js = (function () {
     }
 
     function readPureDataBlock(input, i, output, machineSettings, blockDetails) {
-        var bit0Pulse, bit1Pulse, pilotLength, lastByteBitCount, dataStart = i + 11;
+        var dataStart = i + 11;
 
-        bit0Pulse = getWord(input, i + 1);
-        bit1Pulse = getWord(input, i + 3);
-        lastByteBitCount = input.getByte(i + 5);
+        blockDetails.bit0Pulse = getWord(input, i + 1);
+        blockDetails.bit1Pulse = getWord(input, i + 3);
+        blockDetails.lastByteBitCount = input.getByte(i + 5);
         blockDetails.pause = getWord(input, i + 6);
         blockDetails.blockLength = (input.getByte(i + 10) << 16) | (input.getByte(i + 9) << 8) | input.getByte(i + 8);
 
-        addDataBlockToOutput(convertTStatesToSamples(bit0Pulse, output, machineSettings),
-            convertTStatesToSamples(bit1Pulse, output, machineSettings),
-            input, dataStart, blockDetails.blockLength, lastByteBitCount, output);
+        blockDetails.flag = input.getByte(i + 11);
+        blockDetails.checkSum = input.getByte(dataStart + blockDetails.blockLength - 1);
 
-        addPauseToOutput(convertTStatesToSamples(bit1Pulse, output, machineSettings), blockDetails.pause, output);
+        blockDetails.validCheckSum = calculateChecksum(input, dataStart,
+            blockDetails.blockLength - 1) === blockDetails.checkSum;
 
-        return dataStart + blockDetails.blockLength;
+        addDataBlockToOutput(convertTStatesToSamples(blockDetails.bit0Pulse, output, machineSettings),
+            convertTStatesToSamples(blockDetails.bit1Pulse, output, machineSettings),
+            input, dataStart, blockDetails.blockLength, blockDetails.lastByteBitCount, output);
+
+        addPauseToOutput(convertTStatesToSamples(blockDetails.bit1Pulse, output, machineSettings), blockDetails.pause, output);
+
+        return dataStart + blockDetails.blockLength - 1;
     }
 
     function readTurboSpeedDataBlock(input, i, output, machineSettings, blockDetails) {
@@ -373,16 +381,18 @@ var tzx_js = (function () {
         return dataStart + blockDetails.blockLength;
     }
 
-    function readPulseSequences(input, i, output, machineSettings) {
-        var x, count = input.getByte(i + 1), pulseLength, pulseSamples;
+    function readPulseSequences(input, i, output, machineSettings, blockDetails) {
+        var x, pulseLength, pulseSamples;
 
-        for (x = 0; x < count; x += 1) {
+        blockDetails.pulseCount = input.getByte(i + 1);
+
+        for (x = 0; x < blockDetails.pulseCount; x += 1) {
             pulseLength = getWord(input, i + 2 + (x * 2));
             pulseSamples = convertTStatesToSamples(pulseLength, output, machineSettings);
             addSingleAnalogPulseToOutput(pulseSamples, output);
         }
 
-        return i + (count * 2) + 1;
+        return i + (blockDetails.pulseCount * 2) + 1;
     }
 
     function readGroupStart(input, i, blockDetails) {
@@ -396,10 +406,10 @@ var tzx_js = (function () {
 
     function createInputWrapper(input) {
 
-        if (typeof input.getByte === "undefined") {
+        if (input.getByte === undefined) {
             return {
                 getLength: function () { return input.length; },
-                getByte: function(i) { return input[i]; }
+                getByte: function (i) { return input[i]; }
             };
         }
         return input;
@@ -433,7 +443,7 @@ var tzx_js = (function () {
                     i = readPureTone(input, i, output, blockDetails, machineSettings);
                     break;
                 case 0x13:
-                    i = readPulseSequences(input, i, output, machineSettings);
+                    i = readPulseSequences(input, i, output, machineSettings, blockDetails);
                     break;
                 case 0x14:
                     i = readPureDataBlock(input, i, output, machineSettings, blockDetails);
