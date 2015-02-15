@@ -36,7 +36,7 @@ var tzx_js = (function () {
 
     ////////// Audio Wave Generation Functions
 
-    var wavePosition = 0, db = 115;
+    var wavePosition = 0, db;
 
     function convertTStatesToSamples(tStates, output, machineSettings) {
         var samples = 0.5 + ((output.frequency / machineSettings.clockSpeed)) * tStates;
@@ -256,6 +256,8 @@ var tzx_js = (function () {
     function convertTzxToAudio(machineSettings, input, output) {
         var i = 0, version = { major: -1, minor: -1}, blockDetails, retBlockDetails = [];
 
+        db = machineSettings.highAmplitude;
+
         while (i < input.length) {
             if (i === 0) {
                 i = readHeader(input, version);
@@ -328,6 +330,8 @@ var tzx_js = (function () {
     function convertTapToAudio(machineSettings, input, output) {
         var i = 0, blockDetails, retBlockDetails = [];
 
+        db = machineSettings.highAmplitude;
+
         while (i < input.length) {
             blockDetails = {
                 blockType: 0x10,
@@ -380,8 +384,7 @@ var tzx_js = (function () {
 
         MachineSettings: {
             ZXSpectrum48: {
-                lowAmplitude: 0x10,
-                highAmplitude: 0xF0,
+                highAmplitude: 115,
                 clockSpeed: 3500000,
                 pilotPulse: 2168,
                 sync1Pulse: 667,
