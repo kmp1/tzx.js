@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var tzx_js = (function () {
+var tzx = (function () {
 
     "use strict";
 
@@ -312,7 +312,7 @@ var tzx_js = (function () {
             convertTStatesToSamples(blockDetails.bit1Pulse, output, machineSettings),
             input, dataStart, blockDetails.blockLength, blockDetails.lastByteBitCount, output);
 
-        addPauseToOutput(convertTStatesToSamples(blockDetails.bit1Pulse, output, machineSettings), blockDetails.pause, output);
+        addPauseToOutput(convertTStatesToSamples(blockDetails.bit0Pulse, output, machineSettings), blockDetails.pause, output);
 
         return dataStart + blockDetails.blockLength - 1;
     }
@@ -382,14 +382,22 @@ var tzx_js = (function () {
     }
 
     function readPulseSequences(input, i, output, machineSettings, blockDetails) {
-        var x, pulseLength, pulseSamples;
+        var x, y, pulseLength, pulseSamples = [];
 
         blockDetails.pulseCount = input.getByte(i + 1);
 
-        for (x = 0; x < blockDetails.pulseCount; x += 1) {
-            pulseLength = getWord(input, i + 2 + (x * 2));
-            pulseSamples = convertTStatesToSamples(pulseLength, output, machineSettings);
-            addSingleAnalogPulseToOutput(pulseSamples, output);
+        for (x = i + 2; x < i + 2 + (blockDetails.pulseCount * 2); x += 2) {
+            pulseLength = getWord(input, x);
+            pulseSamples.push(convertTStatesToSamples(pulseLength, output, machineSettings));
+        }
+
+        y = 0;
+        if (blockDetails.pulseCount & 1) {
+            addSingleAnalogPulseToOutput(pulseSamples[0], output);
+            y = 1;
+        }
+        for (x = y; x < blockDetails.pulseCount; x += 2) {
+            addAnalogWaveToOutput(pulseSamples[x], pulseSamples[x + 1], output);
         }
 
         return i + (blockDetails.pulseCount * 2) + 1;
@@ -608,7 +616,7 @@ var tzx_js = (function () {
 }());
 
 if (typeof exports !== "undefined") {
-    exports.convertTzxToAudio = tzx_js.convertTzxToAudio;
-    exports.convertTapToAudio = tzx_js.convertTapToAudio;
-    exports.MachineSettings = tzx_js.MachineSettings;
+    exports.convertTzxToAudio = tzx.convertTzxToAudio;
+    exports.convertTapToAudio = tzx.convertTapToAudio;
+    exports.MachineSettings = tzx.MachineSettings;
 }
