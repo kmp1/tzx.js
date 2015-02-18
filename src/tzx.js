@@ -561,9 +561,7 @@ var tzx = (function () {
 
         addEndOfFileToneToOutput(output);
 
-        return {
-            blocks: retBlockDetails
-        };
+        return retBlockDetails;
     }
 
     return {
