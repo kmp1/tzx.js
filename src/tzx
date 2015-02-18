@@ -36,6 +36,7 @@ program
     .version(pkg.version)
     .option('-o, --out <path>', 'Path to an output file (if not specified, a file in the same location with the same name ending with .wav will be created)')
     .option('-t, --type <1|2>', 'The type 1 is TZX and 2 is TAP - if not specified the file extension is used', parseInt)
+    .option('-v, --verbose', 'Output verbose messages')
     .parse(process.argv);
 
 var input = program.args[0];
@@ -95,28 +96,43 @@ console.log("Converting " + input + " to " + output + " (as a " + (isTzx ? "tzx"
 
 var file = fs.readFileSync(input);
 var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
-
 var details;
-if (isTzx) {
-	details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
-} else {
-	details = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
+var blocks;
+
+try {
+
+    if (isTzx) {
+        details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
+        blocks = details.blocks;
+    } else {
+        blocks = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
+        details = {};
+    }
+
+} catch (e) {
+    console.log("CONVERSION FAILED:\n");
+    console.log(e);
+    return;
 }
 
 fs.writeFileSync(output, new Buffer(wave.toByteArray()));
 
 console.log("Conversion SUCCESSFUL!");
 
-if (details.majorVersion !== undefined) {
-	console.log("ZXTape file revision " + details.majorVersion + "." + details.minorVersion);
+if (program.verbose === undefined) {
+    return;
 }
 
-console.log("Number of Blocks: " + details.blocks.length);
+if (details.version !== undefined) {
+	console.log("ZXTape file revision " + details.version.major + "." + details.version.minor);
+}
 
-for (var x = 1; x < details.blocks.length + 1; x += 1) {
+console.log("Number of Blocks: " + blocks.length);
+
+for (var x = 1; x < blocks.length + 1; x += 1) {
     console.log();
 
-    var block = details.blocks[x - 1];
+    var block = blocks[x - 1];
     var logOutput = "";
 
     if (block.blockType === 0x10 || block.blockType === 0x11 || block.blockType === 0x14) {
@@ -137,60 +153,66 @@ for (var x = 1; x < details.blocks.length + 1; x += 1) {
 
     	var checkSum = "";
     	if (block.checkSum !== undefined) {
-    		checkSum = "\nCheckSum: " + block.checkSum + " (0x" + block.checkSum.toString(16) + ") - " +
-    			(block.validCheckSum ? "OK" : "INVALID");
+    		checkSum = "\n    CheckSum: 0x" + block.checkSum.toString(16) + " (" + block.checkSum + ") - ";
+
+            if (block.checkSum === block.calculatedCheckSum) {
+                checkSum += "OK";
+            } else {
+                checkSum += "INVALID, actual is: 0x" + block.calculatedCheckSum.toString(16) +
+                    " (" + block.calculatedCheckSum + ")";
+            }
     	}
 
     	var typeLabel;
     	if (block.blockType === 0x10) {
-    		typeLabel = "10 - Standard Loading Data -";
+    		typeLabel = "0x10 - Standard Loading Data";
     	} else if (block.blockType === 0x11) {
-    		typeLabel = "11 - Turbo Loading Data -";
+    		typeLabel = "0x11 - Turbo Loading Data";
     	} else {
-			typeLabel = "14 - Pure Data -";
+			typeLabel = "0x14 - Pure Data";
     	}
 
     	var flagLabel;
     	if (block.flag !== undefined) {
-			flagLabel = "\nFlag: " + block.flag + " (0x" + block.flag.toString(16) + ")";
+			flagLabel = "\n    Flag: 0x" + block.flag.toString(16) + " (" + block.flag + ")";
     	} else {
     		flagLabel = "";
     	}
 
     	var pauseLabel;
     	if (block.pause !== undefined) {
-			pauseLabel = "\nPause after block: " + block.pause + " milliseconds";
+			pauseLabel = "\n    Pause after block: " + block.pause + " milliseconds";
     	} else {
     		pauseLabel = "";
     	}
 
-        logOutput = typeLabel + " " + headerText + "\nLength: " +
+        logOutput = typeLabel + " " + headerText + "\n    Length: " +
         	block.blockLength + " bytes " + flagLabel +
             checkSum + pauseLabel;
 
         if (block.blockType === 0x14) {
-            logOutput += "\nBit 0 pulse: " + block.bit0Pulse + "\nBit 1 pulse: " + block.bit1Pulse +
-                "\nLast bit count: " + block.lastByteBitCount;
+            logOutput += "\n    Bit 0 pulse: " + block.bit0Pulse + "\n    Bit 1 pulse: " + block.bit1Pulse +
+                "\n    Last bit count: " + block.lastByteBitCount;
         }
     } else if (block.blockType === 0x12) {
-    	logOutput = "12 - Pure tone: " + block.pilotPulse + " (" + block.pilotLength + ")";
+    	logOutput = "0x12 - Pure tone\n    Pulse: " + block.pilotPulse + "\n    Pulse Length: " + block.pilotLength + ")";
     } else if (block.blockType === 0x21) {
-    	logOutput = "21 - Group Start: " + block.groupName;
+    	logOutput = "0x21 - Group Start\n    Group Name: " + block.groupName;
     } else if (block.blockType === 0x24) {
-    	logOutput = "24 - Loop - count: " + block.loopCount;
+    	logOutput = "0x24 - Loop\n    Count: " + block.loopCount;
     } else if (block.blockType === 0x25) {
-    	logOutput = "25 - Loop End";
+    	logOutput = "0x25 - Loop End";
     } else if (block.blockType === 0x2a) {
-    	logOutput = "2a - Stop the tape - length: " +block.stopTapeLength
+    	logOutput = "0x2a - Stop the tape\n    Length: " +block.stopTapeLength
     } else if (block.blockType === 0x32) {
-    	logOutput = "32 - Archive Info: ";
+    	logOutput = "0x32 - Archive Info\n";
     	for (var y = 0; y < block.archiveInfo.length; y += 1) {
-    		logOutput += block.archiveInfo[y].type + ": " + block.archiveInfo[y].info + "\n";
+    		logOutput += "    " + block.archiveInfo[y].type + ": " + block.archiveInfo[y].info + "\n";
     	}
     } else if (block.blockType === 0x13) {
-        logOutput = "13 - Sequence of Pulses: " + block.pulseCount;
+        logOutput = "0x13 - Sequence of Pulses\n    Pulse Count: " + block.pulseCount;
     } else if (block.blockType === 0x30) {
-        logOutput = "30 - Description: " + block.tapeDescription;
+        logOutput = "0x30 - Description\n    Text: " + block.tapeDescription;
     }
 
     console.log("Block " + x + " (" + block.offset.toString(16) + "):  " + logOutput);

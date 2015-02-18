@@ -305,8 +305,8 @@ var tzx = (function () {
         blockDetails.flag = input.getByte(i + 11);
         blockDetails.checkSum = input.getByte(dataStart + blockDetails.blockLength - 1);
 
-        blockDetails.validCheckSum = calculateChecksum(input, dataStart,
-            blockDetails.blockLength - 1) === blockDetails.checkSum;
+        blockDetails.calculatedCheckSum = calculateChecksum(input, dataStart,
+            blockDetails.blockLength - 1);
 
         addDataBlockToOutput(convertTStatesToSamples(blockDetails.bit0Pulse, output, machineSettings),
             convertTStatesToSamples(blockDetails.bit1Pulse, output, machineSettings),
@@ -336,8 +336,8 @@ var tzx = (function () {
         blockDetails.programType = input.getByte(i + 20);
         blockDetails.checkSum = input.getByte(dataStart + blockDetails.blockLength);
 
-        blockDetails.validCheckSum = calculateChecksum(input, dataStart + 1,
-            blockDetails.blockLength - 1) === blockDetails.checkSum;
+        blockDetails.calculatedCheckSum = calculateChecksum(input, dataStart + 1,
+            blockDetails.blockLength - 1);
 
         blockDetails.headerText = readDataBlockHeaderInformation(input, blockDetails.flag,
             blockDetails.programType, blockDetails.blockLength, dataStart + 2);
@@ -359,8 +359,8 @@ var tzx = (function () {
         blockDetails.programType = input.getByte(i + 6);
         blockDetails.checkSum = input.getByte(dataStart + blockDetails.blockLength);
 
-        blockDetails.validCheckSum = calculateChecksum(input, dataStart + 1,
-            blockDetails.blockLength - 1) === blockDetails.checkSum;
+        blockDetails.calculatedCheckSum = calculateChecksum(input, dataStart + 1,
+            blockDetails.blockLength - 1);
 
         blockDetails.headerText = readDataBlockHeaderInformation(input, blockDetails.flag,
             blockDetails.programType, blockDetails.blockLength, dataStart + 2);
