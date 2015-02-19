@@ -281,6 +281,14 @@ var tzx = (function () {
                 output.stopTheTapeTrigger();
             }
 
+            function addSilenceToOutput(time) {
+                var x = 0, sampleCount = (output.getFrequency() / 1000) * time;
+
+                for (x = 0; x < sampleCount; x += 1) {
+                    addSampleToOutput(-0x80);
+                }
+            }
+
             return {
                 tzxHeader: function (version) {
                     var i, sig = "", eof;

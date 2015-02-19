@@ -99,10 +99,32 @@ var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 var details;
 var blocks;
 
+var splitFileCount = 0;
+
+var outputWrapper = {
+    addSample: function(s) { wave.addSample(s); },
+    getFrequency: function() { return wave.getFrequency(); },
+    stopTheTapeTrigger: function () {
+
+        splitFileCount += 1;
+
+        var newFile;
+        if (output.lastIndexOf('.wav') !== -1) {
+            newFile = output.substr(0, output.lastIndexOf('.')) + '_' + splitFileCount + '.wav';
+        } else {
+            newFile = output + '_' + splitFileCount;
+        }
+
+        fs.writeFileSync(newFile, new Buffer(wave.toByteArray()));
+
+        wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
+    }
+};
+
 try {
 
     if (isTzx) {
-        details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, file, wave);
+        details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, file, outputWrapper);
         blocks = details.blocks;
     } else {
         blocks = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48, file, wave);
@@ -115,6 +137,14 @@ try {
     return;
 }
 
+if (splitFileCount > 0) {
+    splitFileCount += 1;
+    if (output.lastIndexOf('.wav') !== -1) {
+        output = output.substr(0, output.lastIndexOf('.')) + '_' + splitFileCount + '.wav';
+    } else {
+        output = output + '_' + splitFileCount;
+    }
+}
 fs.writeFileSync(output, new Buffer(wave.toByteArray()));
 
 console.log("Conversion SUCCESSFUL!");
