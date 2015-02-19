@@ -577,7 +577,9 @@ var tzx = (function () {
 
                 block2a: function (i, blockDetails) {
 
-                    stopTheTape();
+                    if (machineSettings.is48k) {
+                        stopTheTape();
+                    }
 
                     blockDetails.stopTapeLength = getDWord(i + 1);
                     return i + blockDetails.stopTapeLength + 4;
@@ -840,7 +842,24 @@ var tzx = (function () {
 
         /**
          * This is contains a bunch of pre-canned machine property holders to
-         * save client client having to figure out the various values.
+         * save client client having to figure out the various values. <br/>
+         * <br/>
+         * Currently available are: <br/>
+         * - ZXSpectrum48 <br/>
+         * - ZXSpectrum128 <br/>
+         * <br/>
+         * These are the properties that must be present in this settings bag:
+         *  <br/> <br/>
+         * - highAmplitude <br/>
+         * - clockSpeed <br/>
+         * - pilotPulse <br/>
+         * - sync1Pulse <br/>
+         * - sync2Pulse <br/>
+         * - bit0Pulse <br/>
+         * - bit1Pulse <br/>
+         * - headerPilotLength <br/>
+         * - dataPilotLength <br/>
+         * - is48k <br/>
          */
         MachineSettings: {
             ZXSpectrum48: {
@@ -855,6 +874,7 @@ var tzx = (function () {
                 dataPilotLength: 3220,
                 is48k: true
             },
+
             ZXSpectrum128: {
                 highAmplitude: 115,
                 clockSpeed: 3500000,
