@@ -47,7 +47,10 @@ var tzx = (function () {
 
     function convert(machineSettings, inputData, output, isTap) {
         var input,
-            tStateDivisor = machineSettings.clockSpeed / output.frequency;
+            ticksPerSample = machineSettings.clockSpeed / output.getFrequency();
+
+        // At 44.1kHz, there would be 79.36508 (to 5 decimal places) t-states
+        // in a single sample point in the output wave.
 
         /****** Functions For Dealing With Input Data ******/
 
@@ -55,6 +58,8 @@ var tzx = (function () {
         // arguments here
 
         // TODO: This is a horrible check - should be checking for "is array"
+        // AND it is not even safe in old browsers where undefined can be
+        // re-assigned
         if (inputData.getByte === undefined) {
             input = {
                 getLength: function () { return inputData.length; },
@@ -108,9 +113,9 @@ var tzx = (function () {
 
         /** Converts t-states to sample points */
         function getSamples(tStates) {
-           var s = tStates / tStateDivisor;
+            var samples = tStates / ticksPerSample;
 
-           return s;
+            return samples;
         }
 
         /****** End Of Functions For Dealing With Input Data ******/
@@ -185,7 +190,7 @@ var tzx = (function () {
 
                 m = db;
                 pausePulse = 250;
-                max = output.frequency * duration / (pausePulse * 2000.0);
+                max = output.getFrequency() * duration / (pausePulse * 2000.0);
                 for (i = 1; i < max; i += 1) {
 
                     db = 200 * db / (200.0 + i);
@@ -245,6 +250,7 @@ var tzx = (function () {
                 var i;
 
                 for (i = 0; i < 1000; i += 1) {
+                    db = 100000 * db / (100000 + i);
                     addAnalogWaveToOutput(12, 12);
                 }
             }
@@ -263,6 +269,16 @@ var tzx = (function () {
                 }
 
                 return headerText;
+            }
+
+            function stopTheTape() {
+                if (typeof output.stopTheTapeTrigger === "undefined") {
+                    throw "We encountered a stop the tape situation but " +
+                        "the output passed in does not have a " +
+                        "stopTheTapeTrigger function defined";
+                }
+
+                output.stopTheTapeTrigger();
             }
 
             return {
@@ -358,7 +374,9 @@ var tzx = (function () {
                 block11: function (i, blockDetails) {
                     var pilotPulse, sync1Pulse, sync2Pulse, bit0Pulse,
                         bit1Pulse, pilotLength, lastByteBitCount,
-                        dataStart = i + 18;
+                        dataStart;
+
+                    dataStart = i + 18;
 
                     pilotPulse = getWord(i + 1);
                     sync1Pulse = getWord(i + 3);
@@ -470,6 +488,61 @@ var tzx = (function () {
                     return dataStart + blockDetails.blockLength - 1;
                 },
 
+                block15: function (i, blockDetails) {
+                    var x, n, y, firstBit, pulse1 = 0, pulse2 = 0, mask;
+
+                    blockDetails.tStateCount = getWord(i + 1);
+                    blockDetails.pause = getWord(i + 3);
+                    blockDetails.lastByteBitCount = getByte(i + 5);
+
+                    n = blockDetails.pause + 0x10000 *
+                        blockDetails.lastByteBitCount;
+                    firstBit = (getByte(i + 6) & 0x80);
+
+                    for (x = 0; x < n; x += 1) {
+                        mask  = 0x80;
+                        while (mask) {
+                            y = !(getByte(i + x + 6) & mask);
+                            if (firstBit === y) {
+                                pulse2 += 1;
+                            } else {
+                                if (pulse2) {
+                                    addAnalogWaveToOutput(
+                                        getSamples(pulse1 *
+                                            blockDetails.tStateCount),
+                                        getSamples(pulse2 *
+                                            blockDetails.tStateCount)
+                                    );
+                                    pulse1 = 0;
+                                    pulse2 = 0;
+                                } else {
+                                    pulse1 += 1;
+                                }
+                            }
+
+                            mask >>= 1;
+                        }
+                    }
+
+                    if (pulse2) {
+                        addAnalogWaveToOutput(getSamples(pulse1 *
+                            blockDetails.tStateCount),
+                            getSamples(pulse2 * blockDetails.tStateCount));
+                    }
+                },
+
+                block20: function (i, blockDetails) {
+                    blockDetails.pause = getWord(i + 1);
+
+                    if (blockDetails.pause === 0) {
+                        stopTheTape();
+                    } else {
+                        addSilenceToOutput(blockDetails.pause);
+                    }
+
+                    return i + 2;
+                },
+
                 block21: function (i, blockDetails) {
                     var x, name = "", nameLength = getByte(i + 1);
 
@@ -504,6 +577,8 @@ var tzx = (function () {
 
                 block2a: function (i, blockDetails) {
 
+                    stopTheTape();
+
                     blockDetails.stopTapeLength = getDWord(i + 1);
                     return i + blockDetails.stopTapeLength + 4;
                 },
@@ -520,25 +595,39 @@ var tzx = (function () {
                     return i + length + 1;
                 },
 
-                block32: function (i, blockDetails) {
-                    var length, count = getByte(i + 3), x, y,
-                        type, stringLength, string, entryStart = i + 4;
+                block31: function (i, blockDetails) {
+                    var length, x, message = "";
 
+                    blockDetails.duration = getByte(i + 1);
+                    length = getByte(i + 2);
+                    for (x = 0; x < length; x += 1) {
+                        message += String.fromCharCode(getByte(i + 3 + x));
+                    }
+
+                    blockDetails.message = message;
+                    return i + length + 2;
+                },
+
+                block32: function (i, blockDetails) {
+                    var length, count, x, y, type, strLength, string, start;
+
+                    start = i + 4;
+                    count = getByte(i + 3);
                     blockDetails.archiveInfo = [];
 
                     length = getWord(i + 1);
 
                     for (x = 0; x < count; x += 1) {
 
-                        type = getByte(entryStart);
-                        stringLength = getByte(entryStart + 1);
+                        type = getByte(start);
+                        strLength = getByte(start + 1);
 
-                        entryStart += 2;
+                        start += 2;
 
                         string = "";
-                        for (y = 0; y < stringLength; y += 1) {
-                            string += String.fromCharCode(getByte(entryStart));
-                            entryStart += 1;
+                        for (y = 0; y < strLength; y += 1) {
+                            string += String.fromCharCode(getByte(start));
+                            start += 1;
                         }
 
                         blockDetails.archiveInfo.push({
@@ -549,7 +638,59 @@ var tzx = (function () {
                     return i + length + 2;
                 },
 
-                block5a: function (i) {
+                block33: function (i, blockDetails) {
+                    var count, x, hardwareInfo = [];
+
+                    count = getByte(i + 1);
+
+                    for (x = 0; x < count; x += 3) {
+
+                        blockDetails.hardwareInfo.push({
+                            type: getByte(i + x),
+                            id: getByte(i + x + 1),
+                            info: getByte(i + x + 2)
+                        });
+                    }
+
+                    blockDetails.hardwareInfo = hardwareInfo;
+
+                    return i + (count * 3) + 1;
+                },
+
+                block35: function (i, blockDetails) {
+                    var x, id = "", info = [];
+
+                    for (x = 1; x <= 10; x += 1) {
+                        id += String.fromCharCode(getByte(i + x));
+                    }
+
+                    blockDetails.customInfoIdentification = id;
+                    blockDetails.customInfoLength = getWord(i + 11);
+
+                    for (x = 0; x < blockDetails.customInfoLength; x += 1) {
+                        info.push(getByte(i + 12 + x));
+                    }
+
+                    blockDetails.customInfo = info;
+
+                    return i + blockDetails.customInfoLength + 12;
+                },
+
+                block5a: function (i, blockDetails) {
+                    var x = 0, id = "";
+
+                    // This is a "glue" block, the value should be
+                    // XTape!<eof><majver><minver>
+                    // So 9 bytes
+
+                    for (x = 1; x <= 7; x += 1) {
+                        id += String.fromCharCode(getByte(i + x));
+                    }
+
+                    blockDetails.glueIdentifier = id;
+                    blockDetails.glueEof = getByte(i + 7);
+                    blockDetails.glueMajor = getByte(i + 8);
+                    blockDetails.glueMinor = getByte(i + 9);
 
                     return i + 9;
                 },
@@ -598,13 +739,14 @@ var tzx = (function () {
 
         /** Convert a TZX File */
         function convertTzx() {
-            var i = 0, details = { version: {}, blocks: [] }, blockDetails, n,
-                handlers = new HandlerWrapper();
+            var i = 0, details, blockDetails, n, handle = new HandlerWrapper();
+
+            details = { version: {}, blocks: [] };
 
             while (i < getInputLength()) {
 
                 if (i === 0) {
-                    i = handlers.tzxHeader(details.version);
+                    i = handle.tzxHeader(details.version);
                 } else {
 
                     blockDetails = {
@@ -614,13 +756,13 @@ var tzx = (function () {
 
                     n = "block" + blockDetails.blockType.toString(16);
 
-                    if (!handlers.hasOwnProperty(n)) {
+                    if (!handle.hasOwnProperty(n)) {
                         throw "Block 0x" + blockDetails.blockType.toString(16) +
                             " is not currently implemented - how about " +
                             "going to github " +
                             "(https://github.com/kmp1/tzx.js) and helping out?";
                     }
-                    i = handlers[n](i, blockDetails);
+                    i = handle[n](i, blockDetails);
 
                     details.blocks.push(blockDetails);
                 }
@@ -628,14 +770,13 @@ var tzx = (function () {
                 i += 1;
             }
 
-            handlers.finishFile(true);
+            handle.finishFile(true);
             return details;
         }
 
         /** Convert a TAP File */
         function convertTap() {
-            var i = 0, blocks = [], blockDetails,
-                handlers = new HandlerWrapper();
+            var i = 0, blocks = [], blockDetails, handle = new HandlerWrapper();
 
             while (i < getInputLength()) {
                 blockDetails = {
@@ -643,12 +784,12 @@ var tzx = (function () {
                     offset: i
                 };
 
-                i = handlers.tapDataBlock(i, blockDetails);
+                i = handle.tapDataBlock(i, blockDetails);
 
                 blocks.push(blockDetails);
             }
 
-            handlers.finishFile(false);
+            handle.finishFile(false);
             return blocks;
         }
 
@@ -711,7 +852,20 @@ var tzx = (function () {
                 bit0Pulse: 855,
                 bit1Pulse: 1710,
                 headerPilotLength: 8064,
-                dataPilotLength: 3220
+                dataPilotLength: 3220,
+                is48k: true
+            },
+            ZXSpectrum128: {
+                highAmplitude: 115,
+                clockSpeed: 3500000,
+                pilotPulse: 2168,
+                sync1Pulse: 667,
+                sync2Pulse: 735,
+                bit0Pulse: 855,
+                bit1Pulse: 1710,
+                headerPilotLength: 8064,
+                dataPilotLength: 3220,
+                is48k: false
             }
             // TODO: Add some more machines here - e.g. SAM, CPC etc
         }

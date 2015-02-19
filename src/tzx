@@ -25,8 +25,8 @@ SOFTWARE.
 
 var fs = require('fs');
 var constants = require('constants');
-var wav_js = require("/Users/kevin/Projects/wav.js/master/src/wav.js");
-var tzx_js = require("/Users/kevin/Projects/tzx.js/master/src/tzx.js");
+var wav = require("/Users/kevin/Projects/wav.js/master/src/wav.js");
+var tzx = require("/Users/kevin/Projects/tzx.js/master/src/tzx.js");
 var program = require('commander');
 var path = require('path');
 var pkg = require(path.join(__dirname, '../package.json'));
@@ -95,17 +95,17 @@ if (!typeSpecified) {
 console.log("Converting " + input + " to " + output + " (as a " + (isTzx ? "tzx" : "tap") + " file)...");
 
 var file = fs.readFileSync(input);
-var wave = wav_js.create(1, 44100, wav_js.BitSize.EIGHT);
+var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 var details;
 var blocks;
 
 try {
 
     if (isTzx) {
-        details = tzx_js.convertTzxToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
+        details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, file, wave);
         blocks = details.blocks;
     } else {
-        blocks = tzx_js.convertTapToAudio(tzx_js.MachineSettings.ZXSpectrum48, file, wave);
+        blocks = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48, file, wave);
         details = {};
     }
 

@@ -21,7 +21,7 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 
 	var tzxFile = fs.readFileSync("test/input/simple.tzx");
 
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
+	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, {
 		getLength: function() { return tzxFile.length; },
@@ -44,7 +44,7 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 exports.testBasicTap = function(test) {
 	var tapFile = fs.readFileSync("test/input/simple.tap");
 
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
+	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48,
 		tapFile, wave);
@@ -64,7 +64,7 @@ exports.testTzxWithFastDataBlock = function(test) {
 
 	var tzxFile = fs.readFileSync("test/input/fast_index.tzx");
 
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
+	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
 		tzxFile, wave);
@@ -80,62 +80,3 @@ exports.testTzxWithFastDataBlock = function(test) {
     test.done();
 };
 
-exports.testTzxWithStopTapeBlock = function(test) {
-
-	var tzxFile = fs.readFileSync("test/input/stop_tape.tzx");
-
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
-
-	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		tzxFile, wave);
-
-	var rawWaveData = wave.toByteArray();
-
-	var expectedOutput = fs.readFileSync("test/expected_output/stop_tape_tzx.wav");
-
-	var theyMatch = compareByteArrays(expectedOutput, rawWaveData);
-
-    test.equal(theyMatch, true, "The TZX with stop tape test fails as the output does not match our expectations");
-
-    test.done();
-};
-
-exports.testTzxWithPureDataBlock = function(test) {
-
-	var tzxFile = fs.readFileSync("test/input/pure_data.tzx");
-
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
-
-	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		tzxFile, wave);
-
-	var rawWaveData = wave.toByteArray();
-
-	var expectedOutput = fs.readFileSync("test/expected_output/pure_data_tzx.wav");
-
-	var theyMatch = compareByteArrays(expectedOutput, rawWaveData);
-
-    test.equal(theyMatch, true, "The TZX with pure data test fails as the output does not match our expectations");
-
-    test.done();
-};
-
-exports.testTzxWithArchiveInfo = function(test) {
-
-	var tzxFile = fs.readFileSync("test/input/archive_info.tzx");
-
-	var wave = wav.create(1, 44100, wav.BitSize.EIGHT);
-
-	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		tzxFile, wave);
-
-	var rawWaveData = wave.toByteArray();
-
-	var expectedOutput = fs.readFileSync("test/expected_output/archive_info_tzx.wav");
-
-	var theyMatch = compareByteArrays(expectedOutput, rawWaveData);
-
-    test.equal(theyMatch, true, "The TZX with archive test fails as the output does not match our expectations");
-
-    test.done();
-};
