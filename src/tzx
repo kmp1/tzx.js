@@ -102,8 +102,8 @@ var blocks;
 var splitFileCount = 0;
 
 var outputWrapper = {
-    addSample: function(s) { wave.addSample(s); },
-    getFrequency: function() { return wave.getFrequency(); },
+    addSample: wave.addSample,
+    getFrequency: wave.getFrequency,
     stopTheTapeTrigger: function () {
 
         splitFileCount += 1;
