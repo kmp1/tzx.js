@@ -13,5 +13,5 @@ A TAP file is also supported and can simply be passed like so:
 
     tzx -o my_wav_file.wav /some/dir/a_tzx.tap
 
-If you have an alternate file extension, see the -t option.  For a complete list of options see the -help option.  A very useful option is -v for verbose output.
+If you have an alternate file extension, see the -t option.  For a complete list of options see the -help option.  A very useful option is -v for verbose output.  And if you have, for example, a stereo cable try out the -l option which will generate a stereo audio file with only a single channel of sound (works like a charm for me).
 
