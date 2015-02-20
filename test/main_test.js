@@ -17,18 +17,24 @@ function compareByteArrays(array1, array2) {
 	return true;
 }
 
-exports.testTzxWithOnlyBlock10Data = function(test) {
+function createAudioOutput(input) {
 
-	var tzxFile = fs.readFileSync("test/input/simple.tzx");
+	var tzxFile = fs.readFileSync(input);
 
-	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
-
-	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, {
+	return {
 		getLength: function() { return tzxFile.length; },
 		getByte: function(index) {
 			return tzxFile[index];
 		}
-	}, wave);
+	};
+}
+
+exports.testTzxWithOnlyBlock10Data = function(test) {
+
+	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
+
+	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
+		createAudioOutput("test/input/simple.tzx"), wave);
 
 	var rawWaveData = wave.toByteArray();
 
@@ -42,12 +48,11 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 };
 
 exports.testBasicTap = function(test) {
-	var tapFile = fs.readFileSync("test/input/simple.tap");
 
 	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48,
-		tapFile, wave);
+		createAudioOutput("test/input/simple.tap"), wave);
 
 	var rawWaveData = wave.toByteArray();
 
@@ -62,12 +67,10 @@ exports.testBasicTap = function(test) {
 
 exports.testTzxWithFastDataBlock = function(test) {
 
-	var tzxFile = fs.readFileSync("test/input/fast_index.tzx");
-
 	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		tzxFile, wave);
+		createAudioOutput("test/input/fast_index.tzx"), wave);
 
 	var rawWaveData = wave.toByteArray();
 

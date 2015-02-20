@@ -41,33 +41,174 @@ SOFTWARE.
     vars: false,
     white: false,
     maxlen: 80 */
+// NOTE ABOUT JSLINT: So I do typeof blah, blah, blah in some places which
+// JS Lint does not like.  Apparently you should be using the === undefined
+// approach but I cannot do that as I want this to work in old browsers where
+// that check is not safe, so I am ignoring JS Lint in these cases (sorry
+// Douglas)
 var tzx = (function () {
 
     "use strict";
 
     function convert(machineSettings, inputData, output, isTap) {
         var input,
+
+            // At 44.1kHz, there would be 79.36508 (to 5 decimal places)
+            // t-states in a single sample point in the output wave - this is
+            // what this calculation is figuring out.  Mostly we have t-states
+            // and will need sample points.
             ticksPerSample = machineSettings.clockSpeed / output.getFrequency();
 
-        // At 44.1kHz, there would be 79.36508 (to 5 decimal places) t-states
-        // in a single sample point in the output wave.
+        /****** Functions For Validating Input Data ******/
+
+        function validateMachineSettings() {
+            if (machineSettings === null ||
+                    typeof machineSettings === "undefined") {
+                throw "No machine settings passed in - you must pass in a " +
+                    "property bag of settings to describe the target machine" +
+                    " (e.g. a ZX Spectrum 48k has a pre-canned machine " +
+                    "settings object here: tzx.MachineSettings.ZXSpectrum48";
+            }
+
+            if (!machineSettings.hasOwnProperty("highAmplitude")) {
+                throw "machineSettings does not contain the property '" +
+                    "highAmplitude' - this is a value for the high amplitude " +
+                    "level in the output audio (for example 115 works mostly).";
+            }
+            if (!machineSettings.hasOwnProperty("clockSpeed")) {
+                throw "machineSettings does not contain the property '" +
+                    "clockSpeed' - this is the clock speed, in Hz, for " +
+                    "example 3500000 for a ZX Specturm 48k";
+            }
+            if (!machineSettings.hasOwnProperty("pilotPulse")) {
+                throw "machineSettings does not contain the property '" +
+                    "pilotPulse' - this is the length, in t-states of the " +
+                    "pilot pulse, for example 2168 for a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("sync1Pulse")) {
+                throw "machineSettings does not contain the property '" +
+                    "sync1Pulse' - this is the length, in t-states of the " +
+                    "sync 1 pulse, for example 667 for a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("sync2Pulse")) {
+                throw "machineSettings does not contain the property '" +
+                    "sync2Pulse' - this is the length, in t-states of the " +
+                    "sync 2 pulse, for example 735 for a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("bit0Pulse")) {
+                throw "machineSettings does not contain the property '" +
+                    "bit0Pulse' - this is the length, in t-states of the " +
+                    "0 bit pulse, for example 855 for a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("bit1Pulse")) {
+                throw "machineSettings does not contain the property '" +
+                    "bit1Pulse' - this is the length, in t-states of the " +
+                    "1 bit pulse, for example 1710 for a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("headerPilotLength")) {
+                throw "machineSettings does not contain the property '" +
+                    "headerPilotLength' - this is the length, in t-states of " +
+                    "a header data block's pilot pulse, for example 8064 for " +
+                    "a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("dataPilotLength")) {
+                throw "machineSettings does not contain the property '" +
+                    "dataPilotLength' - this is the length, in t-states of " +
+                    "a data data block's pilot pulse, for example 3220 for " +
+                    "a ZX Specturm 48";
+            }
+            if (!machineSettings.hasOwnProperty("is48k")) {
+                throw "machineSettings does not contain the property '" +
+                    "is48k' - this is a boolean that is true if the machine" +
+                    "is a ZX Spectrum 48k - all other machines should be false";
+            }
+        }
+
+        function validateOutput() {
+
+            if (output === null || typeof output === "undefined") {
+                throw "No output passed in - you must pass in an " +
+                    "object that has getFrequency and addSample functions.";
+            }
+
+            if (!output.hasOwnProperty("getFrequency")) {
+                throw "output does not contain the function '" +
+                    "getFrequency()' - this should be a function that " +
+                    "returns an integer representing the sampling frequency " +
+                    "for example 44100";
+            }
+
+            if (typeof output.getFrequency !== "function") {
+                throw "output contains getFrequency but it is not a function.";
+            }
+
+            if (!output.hasOwnProperty("addSample")) {
+                throw "output does not contain the function '" +
+                    "addSample(sample)' - this should be a function that " +
+                    "takes a single argument for the sample point to add.";
+            }
+
+            if (typeof output.addSample !== "function") {
+                throw "output contains addSample but it is not a function.";
+            }
+        }
+
+        function validateInputAndGetWrapperIfPossible() {
+            var wrapped;
+
+            if (inputData === null || typeof inputData === "undefined") {
+                throw "No input passed in - you must pass in an " +
+                    "object that has getLength and getByte functions.";
+            }
+
+            // If they have passed in an array we can, most likely, just deal
+            // with it, hence this array check.  The only problem will be if
+            // there is a stop-the-tape situation - then it will throw an
+            // exception and they'll need to wrap their array themselves - I
+            // suppose we could have an extra optional argument which is the
+            // callback function for stop the tape so you could pass in an array
+            // and a callback but I'm not sure if that is actually any easier
+            // than wrapping it up yourself so I'll just not bother
+
+            if (Object.prototype.toString.call(inputData).toLowerCase() ===
+                    "[object Array]") {
+                wrapped = {
+                    getLength: function () { return inputData.length; },
+                    getByte: function (i) { return inputData[i]; }
+                };
+            } else {
+
+                if (!inputData.hasOwnProperty("getLength")) {
+                    throw "input does not contain the function '" +
+                        "getLength()' - this should be a function that " +
+                        "returns an integer representing the number of bytes " +
+                        "in the input data.";
+                }
+
+                if (typeof inputData.getLength !== "function") {
+                    throw "input contains getLength but it is not a function.";
+                }
+
+                if (!inputData.hasOwnProperty("getByte")) {
+                    throw "input does not contain the function '" +
+                        "getByte(i)' - this should be a function that " +
+                        "takes a single argument for the index to read the " +
+                        "byte from and returns the value of that byte.";
+                }
+
+                if (typeof inputData.getByte !== "function") {
+                    throw "input contains getByte but it is not a function.";
+                }
+
+                wrapped = inputData;
+            }
+
+            return wrapped;
+        }
+
+        /****** End of Functions For Validating Input Data ******/
 
         /****** Functions For Dealing With Input Data ******/
-
-        // TODO: Should be checking the complete state of the passed in
-        // arguments here
-
-        // TODO: This is a horrible check - should be checking for "is array"
-        // AND it is not even safe in old browsers where undefined can be
-        // re-assigned
-        if (inputData.getByte === undefined) {
-            input = {
-                getLength: function () { return inputData.length; },
-                getByte: function (i) { return inputData[i]; }
-            };
-        } else {
-            input = inputData;
-        }
 
         function getInputLength() {
             return input.getLength();
@@ -111,13 +252,6 @@ var tzx = (function () {
             return dataCheckSum;
         }
 
-        /** Converts t-states to sample points */
-        function getSamples(tStates) {
-            var samples = tStates / ticksPerSample;
-
-            return samples;
-        }
-
         /****** End Of Functions For Dealing With Input Data ******/
 
         /****** A class that deals with generating audio output ******/
@@ -125,6 +259,12 @@ var tzx = (function () {
 
             var wavePosition = 0, db = machineSettings.highAmplitude,
                 loopCount = 0, loopStartIndex = -1;
+
+            function getSamples(tStates) {
+                var samples = tStates / ticksPerSample;
+
+                return samples;
+            }
 
             function addSampleToOutput(data) {
                 var sample = data + 0x80;
@@ -275,7 +415,9 @@ var tzx = (function () {
                 if (typeof output.stopTheTapeTrigger === "undefined") {
                     throw "We encountered a stop the tape situation but " +
                         "the output passed in does not have a " +
-                        "stopTheTapeTrigger function defined";
+                        "stopTheTapeTrigger function defined - we do not pass" +
+                        "anything to this function or care about what it " +
+                        "returns so you just need to define it on the output.";
                 }
 
                 output.stopTheTapeTrigger();
@@ -290,6 +432,26 @@ var tzx = (function () {
             }
 
             return {
+
+                /**
+                 * Handles a finishing off a file
+                 * @param {Boolean} addPause True to add a pause before the
+                 * final block
+                 */
+                finishFile: function (addPause) {
+
+                    if (addPause) {
+                        addPauseToOutput(getSamples(machineSettings.bit1Pulse),
+                            1000);
+                    }
+                    addEndOfFileToneToOutput();
+                },
+
+                /**
+                 * Handles a TZX header block
+                 * @param {Object} version The version object to store
+                 * @return {Integer} The index at the end of this block
+                 */
                 tzxHeader: function (version) {
                     var i, sig = "", eof;
 
@@ -321,15 +483,12 @@ var tzx = (function () {
                     return i;
                 },
 
-                finishFile: function (addPause) {
-
-                    if (addPause) {
-                        addPauseToOutput(getSamples(machineSettings.bit1Pulse),
-                            1000);
-                    }
-                    addEndOfFileToneToOutput();
-                },
-
+                /**
+                 * Handles block ID 10 Standard speed data block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block10: function (i, blockDetails) {
                     var pilotLength, dataStart = i + 4;
 
@@ -379,6 +538,12 @@ var tzx = (function () {
                     return i + 4 + blockDetails.blockLength;
                 },
 
+                /**
+                 * Handles block ID 11 Turbo speed data block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block11: function (i, blockDetails) {
                     var pilotPulse, sync1Pulse, sync2Pulse, bit0Pulse,
                         bit1Pulse, pilotLength, lastByteBitCount,
@@ -430,6 +595,12 @@ var tzx = (function () {
                     return dataStart + blockDetails.blockLength;
                 },
 
+                /**
+                 * Handles block ID 12 Pure tone
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block12: function (i, blockDetails) {
 
                     blockDetails.pilotPulse = getWord(i + 1);
@@ -441,6 +612,12 @@ var tzx = (function () {
                     return i + 4;
                 },
 
+                /**
+                 * Handles block ID 13 Sequence of pulses of various lengths
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block13: function (i, blockDetails) {
                     var x, y, pulseLength, pulseSamples = [], max;
 
@@ -466,6 +643,12 @@ var tzx = (function () {
                     return i + (blockDetails.pulseCount * 2) + 1;
                 },
 
+                /**
+                 * Handles block ID 14 Pure data block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block14: function (i, blockDetails) {
                     var dataStart = i + 11;
 
@@ -496,6 +679,12 @@ var tzx = (function () {
                     return dataStart + blockDetails.blockLength - 1;
                 },
 
+                /**
+                 * Handles block ID 15 Direct recording block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block15: function (i, blockDetails) {
                     var x, n, y, firstBit, pulse1 = 0, pulse2 = 0, mask;
 
@@ -539,6 +728,12 @@ var tzx = (function () {
                     }
                 },
 
+                /**
+                 * Handles block ID 20 Pause (silence) or 'Stop the tape'
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block20: function (i, blockDetails) {
                     blockDetails.pause = getWord(i + 1);
 
@@ -551,6 +746,12 @@ var tzx = (function () {
                     return i + 2;
                 },
 
+                /**
+                 * Handles block ID 21 Group start
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block21: function (i, blockDetails) {
                     var x, name = "", nameLength = getByte(i + 1);
 
@@ -561,11 +762,22 @@ var tzx = (function () {
                     return i + nameLength + 1;
                 },
 
+                /**
+                 * Handles block ID 22 Group end
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block22: function (i) {
-
                     return i;
                 },
 
+                /**
+                 * Handles block ID 24 Loop start
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block24: function (i, blockDetails) {
 
                     loopCount = getWord(i + 1);
@@ -574,6 +786,12 @@ var tzx = (function () {
                     return i + 2;
                 },
 
+                /**
+                 * Handles block ID 25 Loop end
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block25: function (i) {
 
                     loopCount -= 1;
@@ -583,6 +801,12 @@ var tzx = (function () {
                     return i;
                 },
 
+                /**
+                 * Handles block ID 2a Stop the tape if in 48K mode
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block2a: function (i, blockDetails) {
 
                     if (machineSettings.is48k) {
@@ -593,6 +817,12 @@ var tzx = (function () {
                     return i + blockDetails.stopTapeLength + 4;
                 },
 
+                /**
+                 * Handles block ID 30 Text description
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block30: function (i, blockDetails) {
                     var length, x, description = "";
 
@@ -605,6 +835,12 @@ var tzx = (function () {
                     return i + length + 1;
                 },
 
+                /**
+                 * Handles block ID 31 Message block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block31: function (i, blockDetails) {
                     var length, x, message = "";
 
@@ -618,6 +854,12 @@ var tzx = (function () {
                     return i + length + 2;
                 },
 
+                /**
+                 * Handles block ID 32 Archive info
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block32: function (i, blockDetails) {
                     var length, count, x, y, type, strLength, string, start;
 
@@ -648,6 +890,12 @@ var tzx = (function () {
                     return i + length + 2;
                 },
 
+                /**
+                 * Handles block ID 33 Hardware type
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block33: function (i, blockDetails) {
                     var count, x, hardwareInfo = [];
 
@@ -667,6 +915,12 @@ var tzx = (function () {
                     return i + (count * 3) + 1;
                 },
 
+                /**
+                 * Handles block ID 35 Custom info block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block35: function (i, blockDetails) {
                     var x, id = "", info = [];
 
@@ -686,6 +940,12 @@ var tzx = (function () {
                     return i + blockDetails.customInfoLength + 12;
                 },
 
+                /**
+                 * Handles block ID 5A "Glue" block (90 dec, ASCII Letter 'Z')
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 block5a: function (i, blockDetails) {
                     var x = 0, id = "";
 
@@ -705,6 +965,12 @@ var tzx = (function () {
                     return i + 9;
                 },
 
+                /**
+                 * Handles a TAP file data block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
                 tapDataBlock: function (i, blockDetails) {
                     var pilotLength, dataStart = i + 2;
 
@@ -803,9 +1069,14 @@ var tzx = (function () {
             return blocks;
         }
 
+        validateMachineSettings();
+        validateOutput();
+        input = validateInputAndGetWrapperIfPossible();
+
         if (isTap) {
             return convertTap();
         }
+
         return convertTzx();
     }
 
@@ -852,22 +1123,22 @@ var tzx = (function () {
          * This is contains a bunch of pre-canned machine property holders to
          * save client client having to figure out the various values. <br/>
          * <br/>
-         * Currently available are: <br/>
-         * - ZXSpectrum48 <br/>
-         * - ZXSpectrum128 <br/>
-         * <br/>
+         * Currently available are:<ul>
+         * <li>ZXSpectrum48 </li>
+         * <li>ZXSpectrum128 </li>
+         * </ul>
          * These are the properties that must be present in this settings bag:
-         *  <br/> <br/>
-         * - highAmplitude <br/>
-         * - clockSpeed <br/>
-         * - pilotPulse <br/>
-         * - sync1Pulse <br/>
-         * - sync2Pulse <br/>
-         * - bit0Pulse <br/>
-         * - bit1Pulse <br/>
-         * - headerPilotLength <br/>
-         * - dataPilotLength <br/>
-         * - is48k <br/>
+         *  <br/> <ul>
+         * <li>highAmplitude </li>
+         * <li>clockSpeed </li>
+         * <li>pilotPulse </li>
+         * <li>sync1Pulse </li>
+         * <li>sync2Pulse </li>
+         * <li>bit0Pulse </li>
+         * <li>bit1Pulse </li>
+         * <li>headerPilotLength </li>
+         * <li>dataPilotLength </li>
+         * <li>is48k </li></ul>
          */
         MachineSettings: {
             ZXSpectrum48: {
@@ -882,7 +1153,6 @@ var tzx = (function () {
                 dataPilotLength: 3220,
                 is48k: true
             },
-
             ZXSpectrum128: {
                 highAmplitude: 115,
                 clockSpeed: 3500000,
@@ -900,7 +1170,7 @@ var tzx = (function () {
     };
 }());
 
-if (typeof exports !== "undefined") {
+if (typeof exports !== 'undefined') {
     exports.convertTzxToAudio = tzx.convertTzxToAudio;
     exports.convertTapToAudio = tzx.convertTapToAudio;
     exports.MachineSettings = tzx.MachineSettings;
