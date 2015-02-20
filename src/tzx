@@ -98,6 +98,10 @@ console.log("Converting " + input + " to " + output + " (as a " + (isTzx ? "tzx"
 var isLeftOnly = program.leftonly === undefined ? false : true;
 
 var file = fs.readFileSync(input);
+var inputFile = {
+    getLength: function () { return file.length; },
+    getByte: function (i) { return file[i]; }
+};
 var wave = wav.create(isLeftOnly ? 2 : 1, 44100, wav.SampleSize.EIGHT);
 var details;
 var blocks;
@@ -133,10 +137,10 @@ var outputWrapper = {
 try {
 
     if (isTzx) {
-        details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, file, outputWrapper);
+        details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48, inputFile, outputWrapper);
         blocks = details.blocks;
     } else {
-        blocks = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48, file, outputWrapper);
+        blocks = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48, inputFile, outputWrapper);
         details = {};
     }
 
