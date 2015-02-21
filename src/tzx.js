@@ -217,6 +217,11 @@ var tzx = (function () {
             return wrapped;
         }
 
+        function handleDeprecatedBlock(blockName) {
+            throw "The block " + blockName + " is deprecated and, as such, " +
+                " tzx.js doesn't support it - you should upgrade the tzx file.";
+        }
+
         /****** End of Functions For Validating Input Data ******/
 
         /****** Functions For Dealing With Input Data ******/
@@ -745,6 +750,16 @@ var tzx = (function () {
                     }
                 },
 
+                /** Handles block ID 16 C64 ROM type data block (DEPRECATED) */
+                block16: function () {
+                    handleDeprecatedBlock("ID 16 C64 ROM type data block");
+                },
+
+                /** Handles block ID 17 C64 turbo tape data block (DEPRECATED)*/
+                block17: function () {
+                    handleDeprecatedBlock("ID 17 C64 turbo tape data block");
+                },
+
                 /**
                  * Handles block ID 20 Pause (silence) or 'Stop the tape'
                  * @param {Integer} i The index at which the block ID is
@@ -932,6 +947,11 @@ var tzx = (function () {
                     return i + (count * 3) + 1;
                 },
 
+                /** Handles block ID 34 Emulation info (DEPRECATED) */
+                block34: function () {
+                    handleDeprecatedBlock("ID 34 Emulation info");
+                },
+
                 /**
                  * Handles block ID 35 Custom info block
                  * @param {Integer} i The index at which the block ID is
@@ -955,6 +975,11 @@ var tzx = (function () {
                     blockDetails.customInfo = info;
 
                     return i + blockDetails.customInfoLength + 12;
+                },
+
+                /** Handles block ID 40 Snapshot block (DEPRECATED) */
+                block40: function () {
+                    handleDeprecatedBlock("ID 40 Snapshot block");
                 },
 
                 /**
