@@ -151,6 +151,17 @@ var tzx = (function () {
             if (typeof output.addSample !== "function") {
                 throw "output contains addSample but it is not a function.";
             }
+
+            if (!output.hasOwnProperty("getSampleSize")) {
+                throw "output does not contain the function '" +
+                    "getSampleSize()' - this should be a function that " +
+                    "returns the number of bits in a sample in the output.";
+            }
+
+            if (typeof output.getSampleSize !== "function") {
+                throw "output contains getSampleSize but it is not a " +
+                    "function.";
+            }
         }
 
         function validateInputAndGetWrapperIfPossible() {
@@ -267,7 +278,13 @@ var tzx = (function () {
             }
 
             function addSampleToOutput(data) {
-                var sample = data + 0x80;
+                var sample;
+
+                if (output.getSampleSize() === 8) {
+                    sample = data + 0x80;
+                } else {
+                    sample = data;
+                }
 
                 output.addSample(sample);
             }

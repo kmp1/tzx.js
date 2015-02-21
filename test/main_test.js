@@ -3,6 +3,310 @@ var wav = require("../node_modules/wav.js/src/wav.js");
 var fs = require('fs');
 var constants = require('constants');
 
+
+exports.validateSettingsChecks = function (test) {
+	var threw = false, output =
+		{ getFrequency: function () { return 44100; }, addSample: function () {}, getSampleSize: function() { return 8; } },
+		input = {
+		getLength: function() { return 10; },
+		getByte: function(index) { }
+	};
+
+	try {
+ 		tzx.convertTzxToAudio(null, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing null argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(undefined, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing no argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12,
+ 			sync2Pulse: 7
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12,
+ 			sync2Pulse: 7,
+ 			bit0Pulse: 1
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12,
+ 			sync2Pulse: 7,
+ 			bit0Pulse: 1,
+ 			bit1Pulse: 3
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12,
+ 			sync2Pulse: 7,
+ 			bit0Pulse: 1,
+ 			bit1Pulse: 3,
+ 			headerPilotLength: 10
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio({
+ 			highAmplitude: 5,
+ 			clockSpeed: 3500000,
+ 			pilotPulse: 1,
+ 			sync1Pulse: 12,
+ 			sync2Pulse: 7,
+ 			bit0Pulse: 1,
+ 			bit1Pulse: 3,
+ 			headerPilotLength: 10,
+ 			dataPilotLength: 5
+ 		}, input, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing subset argument failed");
+    test.done();
+};
+
+exports.validateOutputChecks = function (test) {
+	var threw = false, settings = tzx.MachineSettings.ZXSpectrum48, input = {
+		getLength: function() { return 10; },
+		getByte: function(index) { }
+	};
+
+	try {
+ 		tzx.convertTzxToAudio(settings, input, null);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing null argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing no argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input, {});
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing empty failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input, { getFrequency: 100 });
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing property failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTapToAudio(settings, input, { getFrequency: function () { return 100; } });
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Missing function failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input, { getFrequency: function () { return 100; }, addSample: 100 });
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing function and property failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input, { getFrequency: function () { return 100; }, addSample: function () {} });
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Missing getSampleSize function");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, input, { getFrequency: function () { return 100; }, addSample: function () {}, getSampleSize: 8 });
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing function and property failed");
+
+    test.done();
+};
+
+exports.validateInputChecks = function (test) {
+	var threw = false, output =
+		{ getFrequency: function () { return 44100; }, addSample: function () {}, getSampleSize: function() { return 8; } },
+		settings = tzx.MachineSettings.ZXSpectrum48;
+
+	try {
+ 		tzx.convertTzxToAudio(settings, null, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing null argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, undefined, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing no argument failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, {}, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing empty failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, { getLength: 100 }, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing property failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, { getLength: function () { return 100; } }, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Missing function failed");
+
+	threw = false;
+	try {
+ 		tzx.convertTzxToAudio(settings, { getLength: function () { return 100; }, getByte: 100 }, output);
+	} catch (e) {
+		threw = true;
+	}
+
+	test.equal(threw, true, "Passing function and property failed");
+
+    test.done();
+};
+
 function compareByteArrays(array1, array2) {
 	if (array2.length != array1.length) {
 		return false;
@@ -17,7 +321,7 @@ function compareByteArrays(array1, array2) {
 	return true;
 }
 
-function createAudioOutput(input) {
+function createInputObject(input) {
 
 	var tzxFile = fs.readFileSync(input);
 
@@ -34,7 +338,7 @@ exports.testTzxWithOnlyBlock10Data = function(test) {
 	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		createAudioOutput("test/input/simple.tzx"), wave);
+		createInputObject("test/input/simple.tzx"), wave);
 
 	var rawWaveData = wave.toByteArray();
 
@@ -52,7 +356,7 @@ exports.testBasicTap = function(test) {
 	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTapToAudio(tzx.MachineSettings.ZXSpectrum48,
-		createAudioOutput("test/input/simple.tap"), wave);
+		createInputObject("test/input/simple.tap"), wave);
 
 	var rawWaveData = wave.toByteArray();
 
@@ -70,7 +374,7 @@ exports.testTzxWithFastDataBlock = function(test) {
 	var wave = wav.create(1, 44100, wav.SampleSize.EIGHT);
 
 	var details = tzx.convertTzxToAudio(tzx.MachineSettings.ZXSpectrum48,
-		createAudioOutput("test/input/fast_index.tzx"), wave);
+		createInputObject("test/input/fast_index.tzx"), wave);
 
 	var rawWaveData = wave.toByteArray();
 
