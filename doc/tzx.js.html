@@ -244,6 +244,11 @@ var tzx = (function () {
             return wrapped;
         }
 
+        function handleDeprecatedBlock(blockName) {
+            throw "The block " + blockName + " is deprecated and, as such, " +
+                " tzx.js doesn't support it - you should upgrade the tzx file.";
+        }
+
         /****** End of Functions For Validating Input Data ******/
 
         /****** Functions For Dealing With Input Data ******/
@@ -772,6 +777,16 @@ var tzx = (function () {
                     }
                 },
 
+                /** Handles block ID 16 C64 ROM type data block (DEPRECATED) */
+                block16: function () {
+                    handleDeprecatedBlock("ID 16 C64 ROM type data block");
+                },
+
+                /** Handles block ID 17 C64 turbo tape data block (DEPRECATED)*/
+                block17: function () {
+                    handleDeprecatedBlock("ID 17 C64 turbo tape data block");
+                },
+
                 /**
                  * Handles block ID 20 Pause (silence) or 'Stop the tape'
                  * @param {Integer} i The index at which the block ID is
@@ -959,6 +974,11 @@ var tzx = (function () {
                     return i + (count * 3) + 1;
                 },
 
+                /** Handles block ID 34 Emulation info (DEPRECATED) */
+                block34: function () {
+                    handleDeprecatedBlock("ID 34 Emulation info");
+                },
+
                 /**
                  * Handles block ID 35 Custom info block
                  * @param {Integer} i The index at which the block ID is
@@ -982,6 +1002,11 @@ var tzx = (function () {
                     blockDetails.customInfo = info;
 
                     return i + blockDetails.customInfoLength + 12;
+                },
+
+                /** Handles block ID 40 Snapshot block (DEPRECATED) */
+                block40: function () {
+                    handleDeprecatedBlock("ID 40 Snapshot block");
                 },
 
                 /**
@@ -1228,13 +1253,13 @@ if (typeof exports !== 'undefined') {
 </div>
 
 <nav>
-    <h2><a href="index.html">Index</a></h2><h3>Global</h3><ul><li><a href="global.html#block2a">block2a</a></li><li><a href="global.html#block5a">block5a</a></li><li><a href="global.html#block10">block10</a></li><li><a href="global.html#block11">block11</a></li><li><a href="global.html#block12">block12</a></li><li><a href="global.html#block13">block13</a></li><li><a href="global.html#block14">block14</a></li><li><a href="global.html#block15">block15</a></li><li><a href="global.html#block20">block20</a></li><li><a href="global.html#block21">block21</a></li><li><a href="global.html#block22">block22</a></li><li><a href="global.html#block24">block24</a></li><li><a href="global.html#block25">block25</a></li><li><a href="global.html#block30">block30</a></li><li><a href="global.html#block31">block31</a></li><li><a href="global.html#block32">block32</a></li><li><a href="global.html#block33">block33</a></li><li><a href="global.html#block35">block35</a></li><li><a href="global.html#convertTapToAudio">convertTapToAudio</a></li><li><a href="global.html#convertTzxToAudio">convertTzxToAudio</a></li><li><a href="global.html#finishFile">finishFile</a></li><li><a href="global.html#MachineSettings">MachineSettings</a></li><li><a href="global.html#tapDataBlock">tapDataBlock</a></li><li><a href="global.html#tzxHeader">tzxHeader</a></li></ul>
+    <h2><a href="index.html">Index</a></h2><h3>Global</h3><ul><li><a href="global.html#block2a">block2a</a></li><li><a href="global.html#block5a">block5a</a></li><li><a href="global.html#block10">block10</a></li><li><a href="global.html#block11">block11</a></li><li><a href="global.html#block12">block12</a></li><li><a href="global.html#block13">block13</a></li><li><a href="global.html#block14">block14</a></li><li><a href="global.html#block15">block15</a></li><li><a href="global.html#block16">block16</a></li><li><a href="global.html#block17">block17</a></li><li><a href="global.html#block20">block20</a></li><li><a href="global.html#block21">block21</a></li><li><a href="global.html#block22">block22</a></li><li><a href="global.html#block24">block24</a></li><li><a href="global.html#block25">block25</a></li><li><a href="global.html#block30">block30</a></li><li><a href="global.html#block31">block31</a></li><li><a href="global.html#block32">block32</a></li><li><a href="global.html#block33">block33</a></li><li><a href="global.html#block34">block34</a></li><li><a href="global.html#block35">block35</a></li><li><a href="global.html#block40">block40</a></li><li><a href="global.html#convertTapToAudio">convertTapToAudio</a></li><li><a href="global.html#convertTzxToAudio">convertTzxToAudio</a></li><li><a href="global.html#finishFile">finishFile</a></li><li><a href="global.html#MachineSettings">MachineSettings</a></li><li><a href="global.html#tapDataBlock">tapDataBlock</a></li><li><a href="global.html#tzxHeader">tzxHeader</a></li></ul>
 </nav>
 
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Sat Feb 21 2015 07:23:19 GMT+0100 (CET)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Sat Feb 21 2015 07:59:06 GMT+0100 (CET)
 </footer>
 
 <script> prettyPrint(); </script>
