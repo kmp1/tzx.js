@@ -117,6 +117,7 @@ var outputWrapper = {
         }
     },
     getFrequency: wave.getFrequency,
+    getSampleSize: wave.getSampleSize,
     stopTheTapeTrigger: function () {
 
         splitFileCount += 1;
