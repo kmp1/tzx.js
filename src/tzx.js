@@ -1,4 +1,4 @@
-/*
+   /*
 The MIT License (MIT)
 
 Copyright (c) 2015 Kevin Phillips (kmp1)
@@ -321,6 +321,25 @@ var tzx = (function () {
                 wavePosition = t + wavePosition - pulse2;
             }
 
+            function addSquareWaveToOutput(pulse1, pulse2) {
+                var i, t = 0;
+                
+                for (i = wavePosition; i < pulse1; i += 1) {
+
+                    addSampleToOutput(-80);
+                    t += 1;
+                }
+
+                wavePosition = t + wavePosition - pulse1;
+                t = 0;
+
+                  for (i = wavePosition; i < pulse2; i += 1) {
+
+                    addSampleToOutput(80);
+                    t += 1;
+                }
+            }
+
             function addSingleAnalogPulseToOutput(pulse) {
                 var t = 0, amp, i;
 
@@ -407,7 +426,67 @@ var tzx = (function () {
                     mask >>= 1;
                 }
             }
+            function addDataBlockToOutputMSX(zero, one,pulses,bits,offs,len, lastByteBits) {
+                var md,i,nstart,a,start,nstop,b,stop,m,pu,mask, dataByte,
+                pulses0=((0b11110000&pulses)>>4)/2,
+                pulses1=(0b00001111&pulses)/2;
+                nstart=(0b11000000&bits)>>6;
+                start=(0b00100000&bits)>>5;
+                nstop=(0b00011000&bits)>>3;
+                stop=(0b00000100&bits)>>2;
 
+
+                for (i = offs; i < offs + len; i += 1)
+                 {
+                    for (a= 1; a<=nstart; a +=1)
+                    {
+
+                        if (start)
+                         {
+                            for (pu = 1; pu<=pulses1; pu +=1)
+                            addSquareWaveToOutput(one, one);
+                        }
+                         else
+                        {
+                            for (pu = 1; pu<=pulses0; pu +=1)
+                            addSquareWaveToOutput(zero, zero);
+                        }
+                    }
+                    dataByte = getByte(i);
+                    mask = 0x1;
+                    for (m = 1; m < 9; m += 1)
+                    {
+                        md = (mask&dataByte);
+                        if (mask & dataByte)
+                         {
+                            for (pu = 1; pu<=pulses1; pu +=1)
+                            addSquareWaveToOutput(one, one);
+                        }
+                         else
+                        {
+                            for (pu = 1; pu<=pulses0; pu +=1)
+                            addSquareWaveToOutput(zero, zero);
+                        }
+                        
+                        mask <<= 1;
+                    }
+                    for (a= 1; a<=nstop; a +=1)
+                    {
+
+                        if (stop)
+                         {
+                            for (pu = 1; pu<=pulses1; pu +=1)
+                            addSquareWaveToOutput(one, one);
+                        }
+                         else
+                        {
+                            for (pu = 1; pu<=pulses0; pu +=1)
+                            addSquareWaveToOutput(zero, zero);
+                        }
+                    }
+                }
+
+            }
             function addEndOfFileToneToOutput() {
                 var i;
 
@@ -461,7 +540,7 @@ var tzx = (function () {
                  * final block
                  */
                 finishFile: function (addPause) {
-
+                    
                     if (addPause) {
                         addPauseToOutput(getSamples(machineSettings.bit1Pulse),
                             1000);
@@ -959,27 +1038,65 @@ var tzx = (function () {
                  * @return {Integer} The index at the end of this block
                  */
                 block35: function (i, blockDetails) {
-                    var x, id = "", info = [];
+                    var x, id =  "", info = [];
 
-                    for (x = 1; x <= 10; x += 1) {
+                    for (x = 1; x <= 0x10; x += 1) {
                         id += String.fromCharCode(getByte(i + x));
                     }
 
                     blockDetails.customInfoIdentification = id;
-                    blockDetails.customInfoLength = getWord(i + 11);
+                    blockDetails.customInfoLength = getWord(i + 0x11);
 
                     for (x = 0; x < blockDetails.customInfoLength; x += 1) {
-                        info.push(getByte(i + 12 + x));
+                        info.push(getByte(i + 0x15 + x));
                     }
 
                     blockDetails.customInfo = info;
 
-                    return i + blockDetails.customInfoLength + 12;
+                    return i + blockDetails.customInfoLength + 0x14;
                 },
 
                 /** Handles block ID 40 Snapshot block (DEPRECATED) */
                 block40: function () {
                     handleDeprecatedBlock("ID 40 Snapshot block");
+                },
+                /**
+                 * Handles block ID 4b Standard speed data block
+                 * @param {Integer} i The index at which the block ID is
+                 * @param {Object} blockDetails The details object to fill
+                 * @return {Integer} The index at the end of this block
+                 */
+                block4b: function (i, blockDetails) {
+                    blockDetails.blockLength = getDWord (i+0x1);
+                    blockDetails.pause = getWord(i + 0x5);
+                    blockDetails.pilotPulse = getWord(i + 0x7);
+                    blockDetails.pilotLength = getWord(i + 0x9);
+                    blockDetails.bit0Pulse = getWord(i + 0xb);
+                    blockDetails.bit1Pulse = getWord(i + 0xd);
+                    blockDetails.pulses = getByte(i + 0xf);
+                    blockDetails.bits = getByte(i+0x10);
+                    
+                    var dataStart = i + 0x11,pil,sil;
+                                          
+                
+               
+                for (pil = 1; pil<=blockDetails.pilotLength/2; pil +=1)
+                       addSquareWaveToOutput(getSamples(blockDetails.pilotPulse),getSamples(blockDetails.pilotPulse));
+            
+                addDataBlockToOutputMSX(getSamples(blockDetails.bit0Pulse),
+                        getSamples(blockDetails.bit1Pulse),
+                        (blockDetails.pulses),
+                        (blockDetails.bits),
+                dataStart,
+                (blockDetails.blockLength-12),
+                0);
+            
+                addPauseToOutput(getSamples(blockDetails.bit1Pulse),
+                    blockDetails.pause);
+                //for (sil = 1; sil<=(blockDetails.pause); sil +=1)
+                //       addSquareWaveToOutput(44,0);
+                
+                return i + 4 + blockDetails.blockLength;
                 },
 
                 /**
