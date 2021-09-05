@@ -122,7 +122,7 @@ var tzx = (function () {
                     "is48k' - this is a boolean that is true if the machine" +
                     "is a ZX Spectrum 48k - all other machines should be false";
             }
-        }
+         }
 
         function validateOutput() {
 
@@ -319,6 +319,7 @@ var tzx = (function () {
                 }
 
                 wavePosition = t + wavePosition - pulse2;
+                
             }
 
             function addSquareWaveToOutput(pulse1, pulse2) {
@@ -366,10 +367,11 @@ var tzx = (function () {
                 if (db < 0) {
                     addSingleAnalogPulseToOutput(pausePulse);
                 }
-
-                addAnalogWaveToOutput(pausePulse, pausePulse);
+                
+                //addAnalogWaveToOutput(pausePulse, pausePulse);
 
                 m = db;
+                db=0;
                 pausePulse = 250;
                 max = output.getFrequency() * duration / (pausePulse * 2000.0);
                 for (i = 1; i < max; i += 1) {
@@ -382,6 +384,7 @@ var tzx = (function () {
                     addAnalogWaveToOutput(pausePulse, pausePulse);
                 }
                 db = m;
+                machineSettings.highAmplitude=db;
             }
 
             function addPilotToneToOutput(pilotPulse, length) {
@@ -444,12 +447,14 @@ var tzx = (function () {
                         if (start)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            addSquareWaveToOutput(one, one);
+                            //addSquareWaveToOutput(one, one);
+                            addAnalogWaveToOutput(one, one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            addSquareWaveToOutput(zero, zero);
+                            //addSquareWaveToOutput(zero, zero);
+                            addAnalogWaveToOutput(zero,zero);
                         }
                     }
                     dataByte = getByte(i);
@@ -460,12 +465,14 @@ var tzx = (function () {
                         if (mask & dataByte)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            addSquareWaveToOutput(one, one);
+                            //addSquareWaveToOutput(one, one);
+                            addAnalogWaveToOutput(one, one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            addSquareWaveToOutput(zero, zero);
+                            //addSquareWaveToOutput(zero, zero);
+                            addAnalogWaveToOutput(zero, zero);
                         }
                         
                         mask <<= 1;
@@ -476,12 +483,14 @@ var tzx = (function () {
                         if (stop)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            addSquareWaveToOutput(one, one);
+                            //addSquareWaveToOutput(one, one);
+                            addAnalogWaveToOutput(one,one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            addSquareWaveToOutput(zero, zero);
+                            //addSquareWaveToOutput(zero, zero);
+                            addAnalogWaveToOutput(zero,zero);
                         }
                     }
                 }
@@ -545,7 +554,7 @@ var tzx = (function () {
                         addPauseToOutput(getSamples(machineSettings.bit1Pulse),
                             1000);
                     }
-                    addEndOfFileToneToOutput();
+                    //addEndOfFileToneToOutput();
                 },
 
                 /**
@@ -610,15 +619,12 @@ var tzx = (function () {
                             blockDetails.blockLength,
                             dataStart + 2);
 
-                    if (blockDetails.flag === 0) {
+                    if (blockDetails.flag < 128) {
                         pilotLength = machineSettings.headerPilotLength;
-                    } else if (blockDetails.flag === 0xff) {
-                        pilotLength = machineSettings.dataPilotLength;
                     } else {
-                        throw "Invalid TZX flag byte value: " +
-                            blockDetails.flag;
-                    }
-
+                        pilotLength = machineSettings.dataPilotLength;
+                    } 
+                    
                     addPilotToneToOutput(getSamples(machineSettings.pilotPulse),
                         pilotLength);
 
@@ -655,7 +661,8 @@ var tzx = (function () {
                     pilotPulse = getWord(i + 1);
                     sync1Pulse = getWord(i + 3);
                     sync2Pulse = getWord(i + 5);
-                    bit0Pulse = getWord(i + 7);
+                    bit0Pu
+                    lse = getWord(i + 7);
                     bit1Pulse = getWord(i + 9);
                     pilotLength = getWord(i + 11);
                     lastByteBitCount = getByte(i + 13);
@@ -1077,19 +1084,20 @@ var tzx = (function () {
                     blockDetails.bits = getByte(i+0x10);
                     
                     var dataStart = i + 0x11,pil,sil;
+                    machineSettings.clockSpeed=3528000;
+                    machineSettings.highAmplitude= -115;
                                           
-                
-               
-                for (pil = 1; pil<=blockDetails.pilotLength/2; pil +=1)
-                       addSquareWaveToOutput(getSamples(blockDetails.pilotPulse),getSamples(blockDetails.pilotPulse));
-            
+                              
+                addPilotToneToOutput(getSamples(blockDetails.pilotPulse),
+                (blockDetails.pilotLength/2));
+
                 addDataBlockToOutputMSX(getSamples(blockDetails.bit0Pulse),
                         getSamples(blockDetails.bit1Pulse),
                         (blockDetails.pulses),
                         (blockDetails.bits),
-                dataStart,
-                (blockDetails.blockLength-12),
-                0);
+                        dataStart,
+                        (blockDetails.blockLength-12),
+                        0);
             
                 addPauseToOutput(getSamples(blockDetails.bit1Pulse),
                     blockDetails.pause);
@@ -1183,7 +1191,8 @@ var tzx = (function () {
                 if (i === 0) {
                     i = handle.tzxHeader(details.version);
                 } else {
-
+                    machineSettings.clockSpeed=3500000;
+                    machineSettings.highAmplitude= 115;
                     blockDetails = {
                         blockType: getByte(i),
                         offset: i
@@ -1257,6 +1266,8 @@ var tzx = (function () {
          */
         convertTzxToAudio: function (machineSettings, input, output) {
             return convert(machineSettings, input, output, false);
+            
+        
         },
 
         /**
@@ -1308,8 +1319,8 @@ var tzx = (function () {
                 sync2Pulse: 735,
                 bit0Pulse: 855,
                 bit1Pulse: 1710,
-                headerPilotLength: 8064,
-                dataPilotLength: 3220,
+                headerPilotLength: 8063,
+                dataPilotLength: 3223,
                 is48k: true
             },
             ZXSpectrum128: {
@@ -1320,8 +1331,8 @@ var tzx = (function () {
                 sync2Pulse: 735,
                 bit0Pulse: 855,
                 bit1Pulse: 1710,
-                headerPilotLength: 8064,
-                dataPilotLength: 3220,
+                headerPilotLength: 8063,
+                dataPilotLength: 3223,
                 is48k: false
             }
             // TODO: Add some more machines here - e.g. SAM, CPC etc
