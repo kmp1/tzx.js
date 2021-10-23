@@ -529,7 +529,7 @@ var tzx = (function () {
                         "anything to this function or care about what it " +
                         "returns so you just need to define it on the output.";
                 }
-
+                stopTheTapeTrigger=blockDetails.groupName;
                 output.stopTheTapeTrigger();
             }
 
@@ -661,8 +661,7 @@ var tzx = (function () {
                     pilotPulse = getWord(i + 1);
                     sync1Pulse = getWord(i + 3);
                     sync2Pulse = getWord(i + 5);
-                    bit0Pu
-                    lse = getWord(i + 7);
+                    bit0Pulse = getWord(i + 7);
                     bit1Pulse = getWord(i + 9);
                     pilotLength = getWord(i + 11);
                     lastByteBitCount = getByte(i + 13);
@@ -878,6 +877,7 @@ var tzx = (function () {
                     }
                     blockDetails.groupName = name;
                     return i + nameLength + 1;
+                    //stopTheTape();
                 },
 
                 /**
