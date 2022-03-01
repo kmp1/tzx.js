@@ -1,4 +1,4 @@
-   /*
+/*
 The MIT License (MIT)
 
 Copyright (c) 2015 Kevin Phillips (kmp1)
@@ -122,7 +122,7 @@ var tzx = (function () {
                     "is48k' - this is a boolean that is true if the machine" +
                     "is a ZX Spectrum 48k - all other machines should be false";
             }
-         }
+        }
 
         function validateOutput() {
 
@@ -367,8 +367,6 @@ var tzx = (function () {
                 if (db < 0) {
                     addSingleAnalogPulseToOutput(pausePulse);
                 }
-                
-                //addAnalogWaveToOutput(pausePulse, pausePulse);
 
                 m = db;
                 db=0;
@@ -447,13 +445,11 @@ var tzx = (function () {
                         if (start)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            //addSquareWaveToOutput(one, one);
                             addAnalogWaveToOutput(one, one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            //addSquareWaveToOutput(zero, zero);
                             addAnalogWaveToOutput(zero,zero);
                         }
                     }
@@ -465,13 +461,11 @@ var tzx = (function () {
                         if (mask & dataByte)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            //addSquareWaveToOutput(one, one);
                             addAnalogWaveToOutput(one, one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            //addSquareWaveToOutput(zero, zero);
                             addAnalogWaveToOutput(zero, zero);
                         }
                         
@@ -483,13 +477,11 @@ var tzx = (function () {
                         if (stop)
                          {
                             for (pu = 1; pu<=pulses1; pu +=1)
-                            //addSquareWaveToOutput(one, one);
                             addAnalogWaveToOutput(one,one);
                         }
                          else
                         {
                             for (pu = 1; pu<=pulses0; pu +=1)
-                            //addSquareWaveToOutput(zero, zero);
                             addAnalogWaveToOutput(zero,zero);
                         }
                     }
@@ -554,7 +546,6 @@ var tzx = (function () {
                         addPauseToOutput(getSamples(machineSettings.bit1Pulse),
                             1000);
                     }
-                    //addEndOfFileToneToOutput();
                 },
 
                 /**
@@ -877,7 +868,6 @@ var tzx = (function () {
                     }
                     blockDetails.groupName = name;
                     return i + nameLength + 1;
-                    //stopTheTape();
                 },
 
                 /**
@@ -1045,7 +1035,7 @@ var tzx = (function () {
                  * @return {Integer} The index at the end of this block
                  */
                 block35: function (i, blockDetails) {
-                    var x, id =  "", info = [];
+                    var x, id = "", info = [];
 
                     for (x = 1; x <= 0x10; x += 1) {
                         id += String.fromCharCode(getByte(i + x));
@@ -1086,25 +1076,23 @@ var tzx = (function () {
                     var dataStart = i + 0x11,pil,sil;
                     machineSettings.clockSpeed=3528000;
                     machineSettings.highAmplitude= -115;
-                                          
-                              
-                addPilotToneToOutput(getSamples(blockDetails.pilotPulse),
-                (blockDetails.pilotLength/2));
+          
+                    addPilotToneToOutput(getSamples(blockDetails.pilotPulse),
+                        (blockDetails.pilotLength/2));
 
-                addDataBlockToOutputMSX(getSamples(blockDetails.bit0Pulse),
-                        getSamples(blockDetails.bit1Pulse),
-                        (blockDetails.pulses),
-                        (blockDetails.bits),
-                        dataStart,
-                        (blockDetails.blockLength-12),
-                        0);
-            
-                addPauseToOutput(getSamples(blockDetails.bit1Pulse),
-                    blockDetails.pause);
-                //for (sil = 1; sil<=(blockDetails.pause); sil +=1)
-                //       addSquareWaveToOutput(44,0);
+                    addDataBlockToOutputMSX(getSamples(blockDetails.bit0Pulse),
+                            getSamples(blockDetails.bit1Pulse),
+                            (blockDetails.pulses),
+                            (blockDetails.bits),
+                            dataStart,
+                            (blockDetails.blockLength-12),
+                            0);
                 
-                return i + 4 + blockDetails.blockLength;
+                    addPauseToOutput(getSamples(blockDetails.bit1Pulse),
+                        blockDetails.pause);
+
+                    
+                    return i + 4 + blockDetails.blockLength;
                 },
 
                 /**
@@ -1266,8 +1254,6 @@ var tzx = (function () {
          */
         convertTzxToAudio: function (machineSettings, input, output) {
             return convert(machineSettings, input, output, false);
-            
-        
         },
 
         /**
